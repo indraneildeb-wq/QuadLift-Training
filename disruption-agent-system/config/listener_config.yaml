@@ -1,0 +1,15 @@
+server:
+  host: 127.0.0.1
+  port: 8090
+  path: /downstream/reports
+
+validation:
+  schema_file: schemas/disruption_intelligence_report.schema.json
+  reject_on_invalid: true
+
+audit:
+  file_path: logs/listener_audit.jsonl
+
+logging:
+  level: INFO
+  format: text

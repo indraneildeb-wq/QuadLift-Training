@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/disruption_intelligence_report.schema.json",
+  "title": "DisruptionIntelligenceReport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "report_id", "version", "status", "created_at", "updated_at",
+    "disruption_type", "severity", "confidence_score", "trigger_reason",
+    "geography", "impact_assessment", "contributing_signals",
+    "narrative_summary", "recommended_attention", "metadata"
+  ],
+  "properties": {
+    "report_id": { "type": "string", "format": "uuid" },
+    "version": { "type": "integer", "minimum": 1 },
+    "status": { "type": "string", "enum": ["monitoring", "published", "closed"] },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "disruption_type": {
+      "type": "string",
+      "enum": ["weather", "port_status", "vessel_tracking", "geopolitical", "composite"]
+    },
+    "severity": { "type": "string", "enum": ["low", "moderate", "high", "severe"] },
+    "confidence_score": { "type": "number", "minimum": 0, "maximum": 1 },
+    "trigger_reason": {
+      "type": ["string", "null"],
+      "enum": ["confidence_threshold", "timer_expiry", null]
+    },
+    "geography": { "$ref": "#/$defs/Geography" },
+    "impact_assessment": { "$ref": "#/$defs/ImpactAssessment" },
+    "contributing_signals": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/DisruptionSignal" }
+    },
+    "narrative_summary": { "type": "string", "maxLength": 2000 },
+    "recommended_attention": { "type": "string", "enum": ["monitor", "escalate"] },
+    "metadata": { "$ref": "#/$defs/Metadata" }
+  },
+  "$defs": {
+    "Geography": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["region", "affected_ports", "affected_lanes"],
+      "properties": {
+        "region": { "type": "string", "minLength": 1 },
+        "affected_ports": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[A-Z]{2}[A-Z0-9]{3}$" }
+        },
+        "affected_lanes": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "ImpactAssessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "affected_shipment_ids", "affected_po_ids",
+        "estimated_cargo_value_usd", "estimated_delay_days"
+      ],
+      "properties": {
+        "affected_shipment_ids": { "type": "array", "items": { "type": "string" } },
+        "affected_po_ids": { "type": "array", "items": { "type": "string" } },
+        "estimated_cargo_value_usd": { "type": "number", "minimum": 0 },
+        "estimated_delay_days": { "type": "number", "minimum": 0 }
+      }
+    },
+    "DisruptionSignal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signal_id", "raw_event_id", "signal_type", "severity",
+        "confidence_of_extraction", "geography", "entities",
+        "summary", "source_excerpt", "event_time", "ingested_at"
+      ],
+      "properties": {
+        "signal_id": { "type": "string", "format": "uuid" },
+        "raw_event_id": { "type": "string", "format": "uuid" },
+        "signal_type": {
+          "type": "string",
+          "enum": ["weather", "port_status", "vessel_tracking", "geopolitical"]
+        },
+        "severity": { "type": "string", "enum": ["low", "moderate", "high", "severe"] },
+        "confidence_of_extraction": { "type": "number", "minimum": 0, "maximum": 1 },
+        "geography": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["region"],
+          "properties": {
+            "region": { "type": "string" },
+            "unlocode": { "type": ["string", "null"], "pattern": "^[A-Z]{2}[A-Z0-9]{3}$" },
+            "coordinates": {
+              "type": ["array", "null"],
+              "items": { "type": "number" },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          }
+        },
+        "entities": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "vessels": { "type": "array", "items": { "type": "string" } },
+            "ports": { "type": "array", "items": { "type": "string" } },
+            "lanes": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "summary": { "type": "string", "maxLength": 500 },
+        "source_excerpt": { "type": "string", "maxLength": 1000 },
+        "event_time": { "type": "string", "format": "date-time" },
+        "ingested_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["correlation_key", "revision_history_ref"],
+      "properties": {
+        "correlation_key": { "type": "string" },
+        "revision_history_ref": { "type": "string", "format": "uuid" },
+        "llm_calls_count": { "type": "integer", "minimum": 0 },
+        "cache_hits_count": { "type": "integer", "minimum": 0 },
+        "total_tokens": { "type": "integer", "minimum": 0 },
+        "processing_cost_usd": { "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}

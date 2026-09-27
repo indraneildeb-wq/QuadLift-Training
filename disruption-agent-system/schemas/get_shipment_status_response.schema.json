@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/get_shipment_status_response.schema.json",
+  "title": "GetShipmentStatusResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["shipments"],
+  "properties": {
+    "shipments": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ShipmentRecord" }
+    }
+  },
+  "$defs": {
+    "ShipmentRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shipment_id", "po_id", "cargo", "route", "status", "eta", "last_updated"],
+      "properties": {
+        "shipment_id": { "type": "string" },
+        "po_id": { "type": "string" },
+        "customer_ref": { "type": ["string", "null"] },
+        "cargo": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["description", "value_usd"],
+          "properties": {
+            "description": { "type": "string" },
+            "value_usd": { "type": "number", "minimum": 0 },
+            "hs_code": { "type": ["string", "null"] }
+          }
+        },
+        "route": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "origin_port_unlocode", "destination_port_unlocode", "lane"],
+          "properties": {
+            "mode": { "type": "string", "enum": ["sea", "air", "rail"] },
+            "carrier": { "type": ["string", "null"] },
+            "vessel_imo": { "type": ["string", "null"] },
+            "vessel_name": { "type": ["string", "null"] },
+            "origin_port_unlocode": { "type": "string", "pattern": "^[A-Z]{2}[A-Z0-9]{3}$" },
+            "destination_port_unlocode": { "type": "string", "pattern": "^[A-Z]{2}[A-Z0-9]{3}$" },
+            "current_leg_port_unlocode": { "type": ["string", "null"], "pattern": "^[A-Z]{2}[A-Z0-9]{3}$" },
+            "lane": { "type": "string" }
+          }
+        },
+        "status": { "type": "string", "enum": ["in_transit", "at_port", "delayed", "delivered"] },
+        "eta": { "type": "string", "format": "date-time" },
+        "last_updated": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

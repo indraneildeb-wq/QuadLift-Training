@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/raw_event.schema.json",
+  "title": "RawEvent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["raw_event_id", "source_type", "source_name", "received_at", "payload"],
+  "properties": {
+    "raw_event_id": { "type": "string", "format": "uuid" },
+    "source_type": {
+      "type": "string",
+      "enum": ["api_poll", "event_stream", "webhook", "news_feed", "manual_test_input"]
+    },
+    "source_name": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "received_at": { "type": "string", "format": "date-time" },
+    "payload": {
+      "type": "object",
+      "description": "Source-native or harness-supplied content. For source_type=manual_test_input this must match the manual_test_input payload shape."
+    }
+  },
+  "$defs": {
+    "ManualTestInputPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["declared_category", "raw_text", "entered_at"],
+      "properties": {
+        "declared_category": {
+          "type": "string",
+          "enum": ["weather", "port_status", "vessel_tracking", "news"]
+        },
+        "raw_text": { "type": "string", "minLength": 1, "maxLength": 4000 },
+        "entered_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

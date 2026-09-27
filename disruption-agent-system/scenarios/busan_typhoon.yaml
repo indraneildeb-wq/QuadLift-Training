@@ -1,0 +1,6 @@
+- slot: weather
+  text: "Typhoon approaching Busan, expected landfall in 36 hours, category 3"
+- slot: port_status
+  text: "Port of Busan issuing advisory, reduced crane ops starting tomorrow"
+- slot: news_feed
+  text: "Reuters: Busan port authority warns of 48hr closure risk due to storm"
