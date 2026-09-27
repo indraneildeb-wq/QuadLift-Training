@@ -57,7 +57,12 @@ def build_app(config: dict) -> FastAPI:
     if config["mcp"]["mode"] == "mock":
         mcp_client = MockMCPClient(config["mcp"]["mock"]["fixture_file"])
     else:
-        mcp_client = RealMCPClient(config["mcp"]["real"]["endpoint"], config["mcp"]["real"]["auth_ref"])
+        real_mcp_cfg = config["mcp"]["real"]
+        mcp_client = RealMCPClient(
+            real_mcp_cfg["endpoint"], real_mcp_cfg["api_key"],
+            real_mcp_cfg.get("auth_header_name", "Authorization"),
+            real_mcp_cfg.get("timeout_seconds", 10),
+        )
 
     normalization = NormalizationLayer(llm_client, cache, pricing, audit, metrics, config["model_routing"])
     scorer = ConfidenceScorer(config["confidence_scoring"])

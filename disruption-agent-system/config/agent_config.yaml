@@ -12,8 +12,10 @@ downstream:
 mcp:
   mode: mock   # real | mock -- forced to "mock" if --mock-mcp is passed on the CLI
   real:
-    endpoint: https://supply-chain-core.oceanbridge.internal/mcp
-    auth_ref: vault://oceanbridge/mcp-service-account
+    endpoint: https://supply-chain-core.oceanbridge.internal/sse   # SSE transport endpoint of the running MCP server -- replace with the real URL
+    auth_header_name: Authorization
+    api_key: "REPLACE_WITH_REAL_API_KEY"   # hardcoded per explicit instruction for now; move to a secret store/vault reference before this goes anywhere real
+    timeout_seconds: 10
   mock:
     fixture_file: fixtures/shipments.json
 

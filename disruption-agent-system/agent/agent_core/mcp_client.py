@@ -1,10 +1,13 @@
 """MCPClient adapter for get_shipment_status. MockMCPClient loads the fixture
-file and filters in-memory; RealMCPClient is a thin placeholder REST client for
-the real Supply Chain Core MCP gateway. The Fusion Engine calls
-get_shipment_status(...) identically either way, and both paths run through
-the same mcp_response schema validation -- fixture drift is caught the same
-way a malformed real response would be.
+file and filters in-memory; RealMCPClient talks to an already-running MCP
+server over the real protocol (SSE transport + ClientSession handshake +
+call_tool). Both share the exact same get_shipment_status(shipment_id, filter)
+-> {"shipments": [...]} contract and the same mcp_response schema validation --
+the Fusion Engine never knows or cares which one it's using, and fixture drift
+is caught the same way a malformed real response would be.
 """
+import asyncio
+import concurrent.futures
 import json
 import time
 from abc import ABC, abstractmethod
@@ -82,25 +85,68 @@ class MockMCPClient(MCPClient):
 
 
 class RealMCPClient(MCPClient):
-    """Placeholder REST client for the real Supply Chain Core MCP gateway.
-    Not exercised while --mock-mcp is in effect; the interface is what matters
-    here so the Fusion Engine never needs to change when this is wired up."""
+    """Real MCP protocol client for an already-running server, over the SSE
+    transport: open the transport, wrap it in a ClientSession, initialize()
+    (the handshake), then call_tool("get_shipment_status", arguments). The
+    tool's declared input/output are identical to the mock's -- {shipment_id}
+    or {filter: {port_unlocode, vessel_imo, lane}} in, {"shipments": [...]}
+    out -- so the response is validated against the same mcp_response schema
+    used for MockMCPClient.
 
-    def __init__(self, endpoint: str, auth_ref: str, timeout_seconds: int = 5):
-        import httpx
+    Each call opens its own SSE connection and re-does the handshake via
+    asyncio.run(), rather than keeping a persistent session across calls --
+    this is what lets the rest of the codebase (FusionEngine, the /ingest
+    handler) stay fully synchronous with no changes. It costs a repeated
+    handshake per call; revisit with a long-lived session + background event
+    loop if call volume ever makes that overhead matter.
 
-        self._client = httpx.Client(base_url=endpoint, timeout=timeout_seconds)
-        self._auth_ref = auth_ref  # resolved to a real credential outside this class
+    get_shipment_status() is a plain synchronous method, but it's called from
+    inside FastAPI's already-running event loop (the /ingest handler is
+    `async def`) -- asyncio.run() refuses to start a second loop on a thread
+    that's already running one. So the coroutine is handed to a dedicated
+    worker thread (with no event loop of its own) via a ThreadPoolExecutor,
+    where asyncio.run() is safe to call; .result() then blocks the calling
+    (event-loop) thread until it's done, same as any other synchronous call
+    Fusion makes today.
+    """
+
+    def __init__(self, endpoint: str, api_key: str, auth_header_name: str = "Authorization",
+                 timeout_seconds: float = 10.0):
+        self._endpoint = endpoint
+        self._headers = {auth_header_name: api_key}
+        self._timeout_seconds = timeout_seconds
+        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="mcp-client")
 
     def get_shipment_status(self, shipment_id: Optional[str] = None, filter: Optional[dict] = None) -> dict:
-        import httpx
-
-        body = {"shipment_id": shipment_id} if shipment_id else {"filter": filter}
         try:
-            resp = self._client.post("/tools/get_shipment_status", json=body)
-            resp.raise_for_status()
-        except httpx.HTTPError as exc:
-            raise MCPError("http_error", str(exc))
-        response = resp.json()
+            future = self._executor.submit(asyncio.run, self._call_tool(shipment_id, filter))
+            response = future.result(timeout=self._timeout_seconds + 5)
+        except MCPError:
+            raise
+        except Exception as exc:
+            raise MCPError("mcp_protocol_error", str(exc))
         validate_schema(response, "mcp_response")
         return response
+
+    async def _call_tool(self, shipment_id: Optional[str], filter_: Optional[dict]) -> dict:
+        from mcp import ClientSession
+        from mcp.client.sse import sse_client
+
+        arguments = {"shipment_id": shipment_id} if shipment_id else {"filter": filter_}
+
+        async with sse_client(self._endpoint, headers=self._headers, timeout=self._timeout_seconds) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                result = await session.call_tool("get_shipment_status", arguments)
+
+        if result.is_error:
+            detail = result.content[0].text if result.content else "unknown MCP tool error"
+            raise MCPError("tool_error", detail)
+
+        if result.structured_content is not None:
+            return result.structured_content
+
+        if result.content and hasattr(result.content[0], "text"):
+            return json.loads(result.content[0].text)
+
+        raise MCPError("empty_response", "MCP tool returned no content")
