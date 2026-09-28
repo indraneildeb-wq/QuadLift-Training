@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oceanbridge-agent-common"
+version = "0.1.0"
+description = "Shared agent plumbing: backend interface, run context, CrewAI runner, MCP tool loader"
+requires-python = ">=3.11"
+dependencies = [
+    "oceanbridge-core",
+    "oceanbridge-mcp-servers",
+    "crewai>=0.100",
+    "crewai-tools[mcp]",
+    "pyyaml>=6.0",
+]
+
+# Every package contributes to the shared `oceanbridge` namespace (no oceanbridge/__init__.py).
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["oceanbridge*"]
+namespaces = true
+
+# For uv users: resolve sibling packages from this workspace.
+[tool.uv.sources]
+oceanbridge-core = { workspace = true }
+oceanbridge-mcp-servers = { workspace = true }

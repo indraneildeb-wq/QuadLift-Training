@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oceanbridge-agent-vendor-negotiator"
+version = "0.1.0"
+description = "Vendor Negotiation & PO Agent: carrier SLA negotiation and adjusted purchase orders"
+requires-python = ">=3.11"
+dependencies = [
+    "oceanbridge-core",
+    "oceanbridge-agent-common",
+]
+
+# Every package contributes to the shared `oceanbridge` namespace (no oceanbridge/__init__.py).
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["oceanbridge*"]
+namespaces = true
+
+[tool.setuptools.package-data]
+"oceanbridge.agents.vendor_negotiator" = ["agent.yaml"]
+
+# For uv users: resolve sibling packages from this workspace.
+[tool.uv.sources]
+oceanbridge-core = { workspace = true }
+oceanbridge-agent-common = { workspace = true }

@@ -1,0 +1,14 @@
+# Installs every workspace package in editable mode (dependency order), plus dev tools.
+#   python -m pip install -r requirements.txt
+-e packages/core
+-e packages/mcp-servers
+-e packages/agents/common
+-e packages/agents/disruption-monitor
+-e packages/agents/route-optimizer
+-e packages/agents/vendor-negotiator
+-e packages/agents/status-analyst
+-e packages/agents/chat-assistant
+-e packages/app
+-e packages/ui
+pytest>=8
+ruff

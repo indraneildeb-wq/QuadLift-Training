@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oceanbridge-core"
+version = "0.1.0"
+description = "OceanBridge domain core: config, models, SQLite data layer, freight/routing/risk engines, simulated feeds, semantic cache, model router and the HITL policy"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "pyyaml>=6.0",
+    "sqlalchemy>=2.0",
+    "cachetools>=5.3",
+    "numpy>=1.26",
+    "openai>=1.40",
+]
+
+[project.scripts]
+oceanbridge-seed = "oceanbridge.seed:main"
+
+# Every package contributes to the shared `oceanbridge` namespace (no oceanbridge/__init__.py).
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["oceanbridge*"]
+namespaces = true

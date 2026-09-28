@@ -1,0 +1,644 @@
+<title>OceanBridge MCP Server</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #eef2f1;
+    --surface: #ffffff;
+    --sunken: #f5f8f8;
+    --ink: #13232a;
+    --muted: #56686d;
+    --line: #c6d1d3;
+    --accent: #0a6f8f;
+    --accent-ink: #085a74;
+    --accent-tint: #e0eef2;
+    --amber: #9a6a00;
+    --amber-tint: #fbf1dc;
+    --good: #0a7a0a;
+    --good-tint: #e3f3e3;
+    --crit: #b8352c;
+    --crit-tint: #f8e4e2;
+    --code-bg: #10222a;
+    --code-ink: #dce9ea;
+    --code-key: #7fd0e8;
+    --code-str: #f2c46b;
+    --code-num: #9fe0a0;
+    --display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0e171a; --surface: #152227; --sunken: #111c20; --ink: #e2ebeb; --muted: #97a9ad; --line: #34464c;
+      --accent: #4fb6d6; --accent-ink: #7fcbe3; --accent-tint: #173540; --amber: #f2b233; --amber-tint: #33290f;
+      --good: #4cc44c; --good-tint: #173319; --crit: #f0766b; --crit-tint: #3a1d1b;
+      --code-bg: #0a1216; --code-ink: #d6e4e5;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0e171a; --surface: #152227; --sunken: #111c20; --ink: #e2ebeb; --muted: #97a9ad; --line: #34464c;
+    --accent: #4fb6d6; --accent-ink: #7fcbe3; --accent-tint: #173540; --amber: #f2b233; --amber-tint: #33290f;
+    --good: #4cc44c; --good-tint: #173319; --crit: #f0766b; --crit-tint: #3a1d1b;
+    --code-bg: #0a1216; --code-ink: #d6e4e5;
+  }
+
+  body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15.5px; line-height: 1.6; }
+  a { color: var(--accent-ink); text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; border-radius: 3px; }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 64px;
+          display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 40px; }
+  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; gap: 20px; } }
+
+  /* navigation */
+  nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 20px); align-self: start; display: grid; gap: 4px; font-size: 14px; }
+  nav.toc .grp { font: 600 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 14px 0 4px; }
+  nav.toc .grp:first-child { margin-top: 0; }
+  nav.toc a { color: var(--ink); text-decoration: none; padding: 3px 10px; border-left: 2px solid transparent; }
+  nav.toc a:hover { border-left-color: var(--line); }
+  nav.toc a.on { border-left-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  nav.toc a.tool { font-family: var(--mono); font-size: 12.8px; }
+  @media (max-width: 900px) {
+    nav.toc { position: static; display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 6px; padding-bottom: 6px; }
+    nav.toc .grp { display: none; }
+    nav.toc a { white-space: nowrap; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); padding: 4px 12px; }
+    nav.toc a.on { border-color: var(--accent); }
+  }
+
+  main { display: grid; gap: 44px; min-width: 0; }
+  section { display: grid; gap: 14px; scroll-margin-top: 20px; }
+  header.hero { display: grid; gap: 10px; }
+  .eyebrow { font: 500 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent-ink); }
+  h1 { font: 700 clamp(30px, 4.4vw, 44px)/1.08 var(--display); margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+  h2 { font: 600 26px/1.2 var(--display); margin: 0; text-wrap: balance; }
+  h3 { font: 600 19px/1.3 var(--display); margin: 0; }
+  p { margin: 0; max-width: 72ch; }
+  .lede { font-size: 17px; color: var(--muted); }
+  ul, ol { margin: 0; padding-left: 22px; display: grid; gap: 6px; max-width: 72ch; }
+
+  .facts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .fact { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; display: grid; gap: 1px; }
+  .fact b { font: 600 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .fact span { font: 500 14px var(--mono); }
+
+  code { font-family: var(--mono); font-size: .88em; background: var(--sunken); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  .codebox { position: relative; background: var(--code-bg); color: var(--code-ink); border-radius: 8px; }
+  .codebox .cap { display: flex; justify-content: space-between; align-items: center; padding: 7px 12px; border-bottom: 1px solid rgba(255,255,255,.08);
+                  font: 500 11.5px var(--mono); color: #93a9ad; letter-spacing: .04em; }
+  .codebox pre { margin: 0; padding: 12px 14px; overflow-x: auto; font: 400 13px/1.55 var(--mono); }
+  .codebox .k { color: var(--code-key); } .codebox .s { color: var(--code-str); } .codebox .n { color: var(--code-num); }
+  .copy { font: 500 11.5px var(--mono); color: #cfe0e2; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.14);
+          border-radius: 5px; padding: 3px 9px; cursor: pointer; }
+  .copy:hover { background: rgba(255,255,255,.14); }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 600 11.5px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--sunken); }
+  tr:last-child td { border-bottom: 0; }
+  td code { white-space: nowrap; }
+  .req { font: 600 11px var(--mono); color: var(--accent-ink); background: var(--accent-tint); border-radius: 99px; padding: 1px 7px; }
+  .opt { font: 500 11px var(--mono); color: var(--muted); }
+
+  /* tool cards */
+  .tool { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 22px 22px 24px; display: grid; gap: 16px; scroll-margin-top: 20px; }
+  .tool-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
+  .tool-head h3 { font: 600 20px var(--mono); letter-spacing: -.01em; }
+  .badge { font: 600 11.5px var(--body); border-radius: 99px; padding: 3px 10px; display: inline-flex; gap: 6px; align-items: center; }
+  .badge.read { color: var(--good); background: var(--good-tint); }
+  .badge.write { color: var(--amber); background: var(--amber-tint); }
+  .badge.commit { color: var(--crit); background: var(--crit-tint); }
+  .tool .req-label { font: 600 12px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+  @media (max-width: 1080px) { .two { grid-template-columns: 1fr; } }
+  .callout { border: 1px solid var(--line); border-left: 4px solid var(--accent); background: var(--surface); border-radius: 6px; padding: 12px 16px; display: grid; gap: 6px; }
+  .callout.warn { border-left-color: var(--amber); }
+  .callout.stop { border-left-color: var(--crit); }
+  .callout b.t { font: 600 13px var(--mono); letter-spacing: .04em; text-transform: uppercase; }
+
+  figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 8px; }
+  .diagram { overflow-x: auto; }
+  .diagram svg { display: block; width: 100%; min-width: 760px; height: auto; color: var(--ink); }
+  figcaption { font-size: 13.5px; color: var(--muted); }
+  .d-box { fill: var(--sunken); stroke: var(--line); stroke-width: 1.4; }
+  .d-srv { fill: var(--accent-tint); stroke: var(--accent); stroke-width: 1.8; }
+  .d-gate { fill: var(--amber-tint); stroke: var(--amber); stroke-width: 1.6; stroke-dasharray: 5 3; }
+  .d-t { font: 600 13.5px var(--display); fill: var(--ink); }
+  .d-s { font: 400 11px var(--mono); fill: var(--muted); }
+  .d-tool { font: 500 11.5px var(--mono); fill: var(--accent-ink); }
+  .d-line { stroke: var(--accent); stroke-width: 1.8; fill: none; }
+  .d-dash { stroke: var(--muted); stroke-width: 1.4; fill: none; stroke-dasharray: 4 4; }
+  .d-arrow { fill: var(--accent); }
+  .d-lbl { font: 500 11px var(--mono); fill: var(--accent-ink); }
+
+  .steps { counter-reset: n; list-style: none; padding: 0; display: grid; gap: 10px; }
+  .steps li { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: start; }
+  .steps li::before { counter-increment: n; content: counter(n); font: 600 13px var(--mono); color: var(--accent-ink); background: var(--accent-tint);
+                      border-radius: 50%; width: 28px; height: 28px; display: grid; place-items: center; }
+  footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 16px; }
+</style>
+
+<div class="wrap">
+  <nav class="toc" aria-label="Contents" id="toc">
+    <span class="grp">Guide</span>
+    <a href="#overview">Overview</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#run">Run the server</a>
+    <a href="#connect">Connect a client</a>
+    <span class="grp">Tools</span>
+    <a class="tool" href="#get_shipment_status">get_shipment_status</a>
+    <a class="tool" href="#calculate_freight_cost">calculate_freight_cost</a>
+    <a class="tool" href="#list_route_alternatives">list_route_alternatives</a>
+    <a class="tool" href="#submit_sla_proposal">submit_sla_proposal</a>
+    <a class="tool" href="#issue_purchase_order">issue_purchase_order</a>
+    <span class="grp">Reference</span>
+    <a href="#errors">Responses &amp; errors</a>
+    <a href="#hitl">HITL enforcement</a>
+    <a href="#sequence">Typical call sequence</a>
+    <a href="#codes">Ports, carriers, modes</a>
+    <a href="#testing">Testing</a>
+    <a href="#limits">Limitations</a>
+  </nav>
+
+  <main>
+    <header class="hero" id="overview">
+      <span class="eyebrow">OceanBridge Logistics · Supply Chain Core API</span>
+      <h1>OceanBridge MCP Server</h1>
+      <p class="lede">A Model Context Protocol server that gives AI agents controlled access to OceanBridge's shipments, freight tariffs, reroute options, carrier negotiation and purchase orders. It is how the CrewAI agents in this project read live shipment data and commit reroutes, and any MCP client can use it the same way.</p>
+      <div class="facts">
+        <div class="fact"><b>Server name</b><span>oceanbridge-supply-chain-core</span></div>
+        <div class="fact"><b>Built with</b><span>FastMCP · MCP SDK 1.28</span></div>
+        <div class="fact"><b>Protocol</b><span>2025-11-25</span></div>
+        <div class="fact"><b>Transports</b><span>stdio · SSE · Streamable HTTP</span></div>
+        <div class="fact"><b>Tools</b><span>5</span></div>
+        <div class="fact"><b>Source</b><span>packages/mcp-servers/src/oceanbridge/mcp_servers/supply_chain_core/</span></div>
+      </div>
+      <p>Three tools come straight from the capstone requirement: <code>get_shipment_status</code>, <code>calculate_freight_cost</code> and <code>issue_purchase_order</code>. Two more, <code>list_route_alternatives</code> and <code>submit_sla_proposal</code>, give the Route Optimizer and Vendor Negotiation agents what they need to do their jobs.</p>
+    </header>
+
+    <section id="architecture">
+      <h2>Architecture</h2>
+      <p>The server is a thin layer. Each tool validates its arguments, calls one function in <code>oceanbridge.core.service</code>, and wraps the result in a JSON envelope. All business rules live in the core, so the REST API, the offline agents and MCP clients all get the same behaviour.</p>
+      <figure>
+        <div class="diagram">
+          <svg viewBox="0 0 960 300" role="img" aria-label="MCP clients connect over stdio, SSE or Streamable HTTP to the FastMCP server. Its five tools call core.service, which applies the HITL gate and the freight cache and reads and writes SQLite.">
+            <defs>
+              <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d-arrow" d="M0 0L10 5L0 10z"/></marker>
+            </defs>
+            <!-- clients -->
+            <rect class="d-box" x="10" y="30" width="190" height="62" rx="8"/>
+            <text class="d-t" x="24" y="56">CrewAI agents</text>
+            <text class="d-s" x="24" y="76">MCPServerAdapter · stdio</text>
+            <rect class="d-box" x="10" y="118" width="190" height="62" rx="8"/>
+            <text class="d-t" x="24" y="144">MCP Inspector</text>
+            <text class="d-s" x="24" y="164">interactive testing</text>
+            <rect class="d-box" x="10" y="206" width="190" height="62" rx="8"/>
+            <text class="d-t" x="24" y="232">Any MCP client</text>
+            <text class="d-s" x="24" y="252">stdio · /sse · /mcp</text>
+            <!-- arrows to server -->
+            <path class="d-line" d="M200 61 H258 V150 H290" marker-end="url(#ar)"/>
+            <path class="d-line" d="M200 149 H290" marker-end="url(#ar)"/>
+            <path class="d-line" d="M200 237 H258 V150" />
+            <text class="d-lbl" x="216" y="140">JSON-RPC</text>
+            <!-- server -->
+            <rect class="d-srv" x="290" y="20" width="300" height="260" rx="10"/>
+            <text class="d-t" x="308" y="46">FastMCP server</text>
+            <text class="d-s" x="308" y="64">mcp_servers/supply_chain_core/server.py</text>
+            <text class="d-tool" x="308" y="100">get_shipment_status</text>
+            <text class="d-tool" x="308" y="128">calculate_freight_cost</text>
+            <text class="d-tool" x="308" y="156">list_route_alternatives</text>
+            <text class="d-tool" x="308" y="184">submit_sla_proposal</text>
+            <text class="d-tool" x="308" y="212">issue_purchase_order</text>
+            <text class="d-s" x="308" y="248">errors returned as</text>
+            <text class="d-s" x="308" y="264">{ok: false, error, message}</text>
+            <!-- core -->
+            <path class="d-line" d="M590 150 H640" marker-end="url(#ar)"/>
+            <text class="d-lbl" x="596" y="140">calls</text>
+            <rect class="d-box" x="640" y="40" width="170" height="220" rx="10"/>
+            <text class="d-t" x="656" y="66">core.service</text>
+            <text class="d-s" x="656" y="84">Supply Chain Core</text>
+            <rect class="d-gate" x="654" y="104" width="142" height="54" rx="6"/>
+            <text class="d-t" x="666" y="126">HITL gate</text>
+            <text class="d-s" x="666" y="144">&lt;5% AND &lt;$250k</text>
+            <rect class="d-box" x="654" y="170" width="142" height="54" rx="6"/>
+            <text class="d-t" x="666" y="192">Freight cache</text>
+            <text class="d-s" x="666" y="210">L1 · L3 · L2</text>
+            <!-- db -->
+            <path class="d-line" d="M810 150 H850" marker-end="url(#ar)"/>
+            <rect class="d-box" x="850" y="100" width="100" height="100" rx="10"/>
+            <text class="d-t" x="864" y="130">SQLite</text>
+            <text class="d-s" x="864" y="150">shared with</text>
+            <text class="d-s" x="864" y="166">the REST API</text>
+            <text class="d-s" x="864" y="184">(WAL)</text>
+          </svg>
+        </div>
+        <figcaption>Every tool call passes through the Supply Chain Core. The HITL gate sits inside the core, so a client cannot commit a reroute that needs sign-off, whichever transport it uses.</figcaption>
+      </figure>
+    </section>
+
+    <section id="run">
+      <h2>Run the server</h2>
+      <p>Run from the project root, using the project virtualenv. The server needs a seeded database: run <code>python -m oceanbridge.seed</code> once first.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Transport</th><th>Command</th><th>Address</th><th>Use it for</th></tr></thead>
+          <tbody>
+            <tr><td>stdio (default)</td><td><code>python -m oceanbridge.mcp_servers.supply_chain_core</code></td><td>none: the client starts the process</td><td>CrewAI agents, desktop MCP clients, tests</td></tr>
+            <tr><td>SSE</td><td><code>... --transport sse --port 8765</code></td><td><code>http://127.0.0.1:8765/sse</code><br>POST <code>/messages/</code></td><td>Remote or long-running clients</td></tr>
+            <tr><td>Streamable HTTP</td><td><code>... --transport streamable-http --port 8765</code></td><td><code>http://127.0.0.1:8765/mcp</code></td><td>Newer HTTP-based MCP clients</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="codebox"><div class="cap"><span>PowerShell</span><button class="copy" type="button">Copy</button></div><pre>cd C:\Krishnendu\Workspace\quadlift-capstone-logistic-rerouter
+.\.venv\Scripts\python.exe -m oceanbridge.seed                       # once
+.\.venv\Scripts\python.exe -m oceanbridge.mcp_servers.supply_chain_core           # stdio
+.\.venv\Scripts\python.exe -m oceanbridge.mcp_servers.supply_chain_core --transport sse --port 8765</pre></div>
+
+      <h3>Environment</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Variable</th><th>Default</th><th>Effect</th></tr></thead>
+          <tbody>
+            <tr><td><code>OB_DB_PATH</code></td><td><code>data/oceanbridge.db</code></td><td>Database file. Point it at the same file as the REST API so both see the same shipments, approvals and POs.</td></tr>
+            <tr><td><code>OB_HITL__MAX_COST_INCREASE_PCT</code></td><td><code>5.0</code></td><td>Cost-increase limit enforced by <code>issue_purchase_order</code>.</td></tr>
+            <tr><td><code>OB_HITL__MAX_CARGO_VALUE_USD</code></td><td><code>250000</code></td><td>Cargo-value limit enforced by <code>issue_purchase_order</code>.</td></tr>
+            <tr><td><code>OB_SETTINGS_FILE</code></td><td><code>config/settings.yaml</code></td><td>Alternative settings file (cache TTLs, thresholds).</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The server reads its settings independently of the API. When the CrewAI backend starts it, it passes the API's environment and <code>OB_DB_PATH</code> through, so both processes use the same limits and the same database.</p>
+    </section>
+
+    <section id="connect">
+      <h2>Connect a client</h2>
+      <h3>From CrewAI (how this project does it)</h3>
+      <p>All MCP servers live in the <code>oceanbridge.mcp_servers</code> package, which keeps a registry of them. The CrewAI agents never hard-code a server: <code>agents/common/mcp_tools.py</code> asks for tools by name, and the registry says which server provides them. That server is started over stdio on first use.</p>
+      <div class="codebox"><div class="cap"><span>Python · agents/common/mcp_tools.py (simplified)</span><button class="copy" type="button">Copy</button></div><pre>from crewai_tools import MCPServerAdapter
+from oceanbridge.mcp_servers import SERVERS, stdio_params
+
+spec = SERVERS["supply_chain_core"]              # module + the 5 tool names
+params = stdio_params("supply_chain_core", env={"OB_DB_PATH": "data/oceanbridge.db"})
+adapter = MCPServerAdapter(params, *spec.tools)
+tools = {t.name: t for t in adapter.tools}       # hand these to an Agent(tools=[...])
+...
+adapter.stop()</pre></div>
+      <p>Each agent declares the tools it needs in its own folder. For example, <code>agents/vendor_negotiator/agent.py</code> uses <code>submit_sla_proposal</code>, <code>issue_purchase_order</code> and <code>get_shipment_status</code>.</p>
+
+      <h3>From the Python MCP SDK</h3>
+      <div class="codebox"><div class="cap"><span>Python · same pattern as packages/mcp-servers/tests/test_mcp_server.py</span><button class="copy" type="button">Copy</button></div><pre>import asyncio, json, sys
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
+async def main():
+    params = StdioServerParameters(command=sys.executable, args=["-m", "oceanbridge.mcp_servers.supply_chain_core"])
+    async with stdio_client(params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            print([t.name for t in (await session.list_tools()).tools])
+            res = await session.call_tool("get_shipment_status", {"shipment_id": "SHP-1004"})
+            print(json.loads(res.content[0].text)["risk"])
+
+asyncio.run(main())</pre></div>
+
+      <h3>From MCP Inspector</h3>
+      <p>Requires Node.js. Opens a browser UI where you can list and call every tool.</p>
+      <div class="codebox"><div class="cap"><span>PowerShell</span><button class="copy" type="button">Copy</button></div><pre>npx @modelcontextprotocol/inspector .\.venv\Scripts\python.exe -m oceanbridge.mcp_servers.supply_chain_core</pre></div>
+
+      <h3>From a desktop MCP client</h3>
+      <p>Most desktop clients take a JSON entry like this one. Use absolute paths. This configuration has not been tested with a specific desktop client.</p>
+      <div class="codebox"><div class="cap"><span>JSON · mcpServers entry</span><button class="copy" type="button">Copy</button></div><pre>{
+  <span class="k">"mcpServers"</span>: {
+    <span class="k">"oceanbridge"</span>: {
+      <span class="k">"command"</span>: <span class="s">"C:\\Krishnendu\\Workspace\\quadlift-capstone-logistic-rerouter\\.venv\\Scripts\\python.exe"</span>,
+      <span class="k">"args"</span>: [<span class="s">"-m"</span>, <span class="s">"oceanbridge.mcp_servers.supply_chain_core"</span>],
+      <span class="k">"env"</span>: { <span class="k">"OB_DB_PATH"</span>: <span class="s">"C:\\Krishnendu\\Workspace\\quadlift-capstone-logistic-rerouter\\data\\oceanbridge.db"</span> }
+    }
+  }
+}</pre></div>
+    </section>
+
+    <section id="tools">
+      <h2>Tools</h2>
+      <p>Every tool returns a JSON object with an <code>ok</code> field. The examples below are real responses from the server during the Rotterdam dock-worker strike scenario. Long responses are trimmed where marked.</p>
+
+      <!-- get_shipment_status -->
+      <article class="tool" id="get_shipment_status">
+        <div class="tool-head"><h3>get_shipment_status</h3><span class="badge read">✓ Read-only</span><span class="badge read">Requirement tool</span></div>
+        <p>Current state of one shipment: routing legs, ETA, cargo value, booked freight cost, simulated vessel tracking, disruption risk, its purchase orders and any pending approval.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Parameter</th><th>Type</th><th></th><th>Description</th></tr></thead>
+          <tbody><tr><td><code>shipment_id</code></td><td>string</td><td><span class="req">required</span></td><td>For example <code>SHP-1004</code>. Seeded ids run from SHP-1001 to SHP-1048.</td></tr></tbody>
+        </table></div>
+        <div class="two">
+          <div class="codebox"><div class="cap"><span>arguments</span><button class="copy" type="button">Copy</button></div><pre>{ <span class="k">"shipment_id"</span>: <span class="s">"SHP-1004"</span> }</pre></div>
+          <div class="codebox"><div class="cap"><span>response (trimmed)</span><button class="copy" type="button">Copy</button></div><pre>{
+  <span class="k">"ok"</span>: <span class="n">true</span>,
+  <span class="k">"shipment"</span>: {
+    <span class="k">"id"</span>: <span class="s">"SHP-1004"</span>, <span class="k">"origin"</span>: <span class="s">"CNSZX"</span>, <span class="k">"destination"</span>: <span class="s">"NLRTM"</span>,
+    <span class="k">"mode"</span>: <span class="s">"sea"</span>, <span class="k">"status"</span>: <span class="s">"booked"</span>,
+    <span class="k">"cargo_value_usd"</span>: <span class="n">79000.0</span>, <span class="k">"current_cost_usd"</span>: <span class="n">5543.23</span>,
+    <span class="k">"eta"</span>: <span class="s">"2026-11-05"</span>, <span class="k">"po_id"</span>: <span class="s">"PO-SHP-1004-ORIG"</span>, …
+  },
+  <span class="k">"tracking"</span>: { … },
+  <span class="k">"risk"</span>: {
+    <span class="k">"risk_score"</span>: <span class="n">0.868</span>, <span class="k">"expected_delay_days"</span>: <span class="n">6.0</span>, <span class="k">"at_risk"</span>: <span class="n">true</span>,
+    <span class="k">"drivers"</span>: [<span class="s">"labor @ NLRTM (sev 0.70, +6.0d)"</span>,
+                <span class="s">"port_congestion @ NLRTM (sev 0.56, +4.0d)"</span>]
+  },
+  <span class="k">"purchase_orders"</span>: [ … ],
+  <span class="k">"pending_approval_id"</span>: <span class="n">null</span>
+}</pre></div>
+        </div>
+        <p><span class="req-label">Errors</span> · <code>KeyError</code> for an unknown shipment id.</p>
+      </article>
+
+      <!-- calculate_freight_cost -->
+      <article class="tool" id="calculate_freight_cost">
+        <div class="tool-head"><h3>calculate_freight_cost</h3><span class="badge read">✓ Read-only</span><span class="badge read">Requirement tool</span></div>
+        <p>Prices one freight leg with OceanBridge's tariff: cost, transit days, distance and CO₂. Sea is priced per TEU and air per chargeable kilogram (the greater of actual weight and 167 kg per m³). Results go through the semantic cache, and <code>cache_tier</code> says which tier answered.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Parameter</th><th>Type</th><th></th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>origin</code></td><td>string</td><td><span class="req">required</span></td><td>UN/LOCODE port, e.g. <code>CNSHA</code>. See <a href="#codes">ports</a>.</td></tr>
+            <tr><td><code>destination</code></td><td>string</td><td><span class="req">required</span></td><td>UN/LOCODE port, e.g. <code>NLRTM</code>.</td></tr>
+            <tr><td><code>mode</code></td><td>string</td><td><span class="req">required</span></td><td><code>sea</code> · <code>air</code> · <code>rail</code> · <code>road</code></td></tr>
+            <tr><td><code>weight_kg</code></td><td>number</td><td><span class="req">required</span></td><td>Gross weight.</td></tr>
+            <tr><td><code>volume_cbm</code></td><td>number</td><td><span class="req">required</span></td><td>Volume in m³.</td></tr>
+            <tr><td><code>carrier_id</code></td><td>string</td><td><span class="opt">optional</span></td><td>Must operate the mode. Defaults to the first carrier for that mode.</td></tr>
+            <tr><td><code>via</code></td><td>string[]</td><td><span class="opt">optional</span></td><td>Sea only: force chokepoints, e.g. <code>["MALACCA","CAPE"]</code> to avoid Suez.</td></tr>
+          </tbody>
+        </table></div>
+        <div class="two">
+          <div class="codebox"><div class="cap"><span>arguments</span><button class="copy" type="button">Copy</button></div><pre>{
+  <span class="k">"origin"</span>: <span class="s">"CNSHA"</span>, <span class="k">"destination"</span>: <span class="s">"NLRTM"</span>, <span class="k">"mode"</span>: <span class="s">"sea"</span>,
+  <span class="k">"weight_kg"</span>: <span class="n">18000</span>, <span class="k">"volume_cbm"</span>: <span class="n">60</span>
+}</pre></div>
+          <div class="codebox"><div class="cap"><span>response</span><button class="copy" type="button">Copy</button></div><pre>{
+  <span class="k">"ok"</span>: <span class="n">true</span>,
+  <span class="k">"origin"</span>: <span class="s">"CNSHA"</span>, <span class="k">"destination"</span>: <span class="s">"NLRTM"</span>, <span class="k">"mode"</span>: <span class="s">"sea"</span>,
+  <span class="k">"carrier_id"</span>: <span class="s">"SEA-OCL"</span>,
+  <span class="k">"via"</span>: [<span class="s">"MALACCA"</span>, <span class="s">"BAB_EL_MANDEB"</span>, <span class="s">"SUEZ"</span>, <span class="s">"GIBRALTAR"</span>],
+  <span class="k">"distance_km"</span>: <span class="n">20275.7</span>, <span class="k">"chargeable_units"</span>: <span class="n">2</span>, <span class="k">"unit"</span>: <span class="s">"TEU"</span>,
+  <span class="k">"cost_usd"</span>: <span class="n">5157.9</span>, <span class="k">"transit_days"</span>: <span class="n">33.0</span>, <span class="k">"co2_kg"</span>: <span class="n">3649.6</span>,
+  <span class="k">"cache_tier"</span>: <span class="s">"miss"</span>
+}</pre></div>
+        </div>
+        <p>Calling it again with the same arguments returns <code>"cache_tier": "L1-exact"</code>. A quote can also come from <code>L3-persistent</code> or <code>L2-semantic</code>. A semantic hit requires the same lane, carrier, route and chargeable units.</p>
+        <p><span class="req-label">Errors</span> · <code>ValueError</code> for an unknown port, a carrier that does not run that mode, rail between regions with no corridor, or road between ports that are not connected by land. Example: <code>{"ok": false, "error": "ValueError", "message": "No road connection between CNSHA and KRPUS"}</code></p>
+      </article>
+
+      <!-- list_route_alternatives -->
+      <article class="tool" id="list_route_alternatives">
+        <div class="tool-head"><h3>list_route_alternatives</h3><span class="badge write">◆ Writes proposals</span></div>
+        <p>Prices every sensible reroute for a shipment under the active disruptions and ranks them by landed-cost score: freight, plus inventory holding, plus lateness penalties, plus risk exposure. Candidates include a different sea path (Cape instead of Suez), a nearby port plus trucking, China–Europe rail, air, sea-air through Dubai and the US land bridge. <code>STAY</code> means keeping the current booking. Options that would land later than absorbing the delay are left out.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Parameter</th><th>Type</th><th></th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>shipment_id</code></td><td>string</td><td><span class="req">required</span></td><td>Shipment to reroute.</td></tr>
+            <tr><td><code>max_options</code></td><td>integer</td><td><span class="opt">optional · 8</span></td><td>Maximum number of options returned, best first. STAY is included only if it ranks within this number.</td></tr>
+          </tbody>
+        </table></div>
+        <div class="two">
+          <div class="codebox"><div class="cap"><span>arguments</span><button class="copy" type="button">Copy</button></div><pre>{ <span class="k">"shipment_id"</span>: <span class="s">"SHP-1004"</span>, <span class="k">"max_options"</span>: <span class="n">3</span> }</pre></div>
+          <div class="codebox"><div class="cap"><span>response (fields trimmed)</span><button class="copy" type="button">Copy</button></div><pre>{
+  <span class="k">"ok"</span>: <span class="n">true</span>,
+  <span class="k">"options"</span>: [
+    { <span class="k">"option_id"</span>: <span class="s">"OPT-1"</span>,
+      <span class="k">"label"</span>: <span class="s">"Sea CNSZX-&gt;BEANR, truck BEANR-&gt;NLRTM [Oceanic Container Line]"</span>,
+      <span class="k">"mode"</span>: <span class="s">"multimodal"</span>, <span class="k">"total_cost_usd"</span>: <span class="n">5378.05</span>,
+      <span class="k">"cost_increase_pct"</span>: <span class="n">-2.98</span>, <span class="k">"transit_days"</span>: <span class="n">33.2</span>,
+      <span class="k">"projected_eta"</span>: <span class="s">"2026-11-08"</span>, <span class="k">"residual_risk"</span>: <span class="n">0.0</span>,
+      <span class="k">"capacity_ok"</span>: <span class="n">true</span>, <span class="k">"landed_cost_score"</span>: <span class="n">6689.45</span>, … },
+    { <span class="k">"option_id"</span>: <span class="s">"OPT-2"</span>, <span class="k">"label"</span>: <span class="s">"Sea CNSZX-&gt;GBFXT, truck GBFXT-&gt;NLRTM …"</span>,
+      <span class="k">"cost_increase_pct"</span>: <span class="n">4.05</span>, … },
+    { <span class="k">"option_id"</span>: <span class="s">"OPT-3"</span>, <span class="k">"label"</span>: <span class="s">"Sea CNSZX-&gt;DEHAM, truck DEHAM-&gt;NLRTM …"</span>,
+      <span class="k">"cost_increase_pct"</span>: <span class="n">21.03</span>, … }
+  ]
+}</pre></div>
+        </div>
+        <p>Each option also carries <code>shipment_id</code>, <code>legs[]</code> (mode, ports, chokepoints, carrier, distance, days and cost per leg), <code>co2_kg</code>, <code>cost_delta_usd</code>, <code>lead_time_delta_days</code> and <code>primary_carrier_id</code>.</p>
+        <div class="callout warn"><b class="t">Side effect</b><p>The returned options are saved as the shipment's current proposal. <code>submit_sla_proposal</code> and <code>issue_purchase_order</code> refer to options by <code>option_id</code> from this list, so call this tool first. Calling it again replaces the proposal.</p></div>
+      </article>
+
+      <!-- submit_sla_proposal -->
+      <article class="tool" id="submit_sla_proposal">
+        <div class="tool-head"><h3>submit_sla_proposal</h3><span class="badge write">◆ Writes negotiation log</span></div>
+        <p>Sends a price and SLA offer to the carrier that runs the option's main leg. The carrier is simulated. It either accepts or returns a counter-offer and the SLA terms it can live with. Each round it concedes more, down to a price floor set by its margin and flexibility. The terms it accepts depend on its on-time reliability.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Parameter</th><th>Type</th><th></th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>shipment_id</code></td><td>string</td><td><span class="req">required</span></td><td>Shipment being rerouted.</td></tr>
+            <tr><td><code>option_id</code></td><td>string</td><td><span class="req">required</span></td><td>From the latest <code>list_route_alternatives</code>.</td></tr>
+            <tr><td><code>offered_amount_usd</code></td><td>number</td><td><span class="req">required</span></td><td>Total price offered for the route.</td></tr>
+            <tr><td><code>guaranteed_transit_days</code></td><td>number</td><td><span class="req">required</span></td><td>Transit time the carrier guarantees.</td></tr>
+            <tr><td><code>late_penalty_pct_per_day</code></td><td>number</td><td><span class="req">required</span></td><td>Share of freight credited for each day late.</td></tr>
+            <tr><td><code>max_penalty_pct</code></td><td>number</td><td><span class="req">required</span></td><td>Cap on total late credits.</td></tr>
+            <tr><td><code>reserved_capacity</code></td><td>string</td><td><span class="opt">optional</span></td><td>Default <code>"Priority loading"</code>.</td></tr>
+            <tr><td><code>free_demurrage_days</code></td><td>integer</td><td><span class="opt">optional · 3</span></td><td>Free days at the destination terminal.</td></tr>
+            <tr><td><code>notes</code></td><td>string</td><td><span class="opt">optional</span></td><td>Free text.</td></tr>
+          </tbody>
+        </table></div>
+        <div class="two">
+          <div class="codebox"><div class="cap"><span>arguments (opening offer, 8% below list)</span><button class="copy" type="button">Copy</button></div><pre>{
+  <span class="k">"shipment_id"</span>: <span class="s">"SHP-1004"</span>, <span class="k">"option_id"</span>: <span class="s">"OPT-1"</span>,
+  <span class="k">"offered_amount_usd"</span>: <span class="n">4947.81</span>,
+  <span class="k">"guaranteed_transit_days"</span>: <span class="n">34.9</span>,
+  <span class="k">"late_penalty_pct_per_day"</span>: <span class="n">2.0</span>, <span class="k">"max_penalty_pct"</span>: <span class="n">20.0</span>,
+  <span class="k">"reserved_capacity"</span>: <span class="s">"Priority loading"</span>, <span class="k">"free_demurrage_days"</span>: <span class="n">5</span>
+}</pre></div>
+          <div class="codebox"><div class="cap"><span>response (carrier counters)</span><button class="copy" type="button">Copy</button></div><pre>{
+  <span class="k">"ok"</span>: <span class="n">true</span>, <span class="k">"carrier_id"</span>: <span class="s">"SEA-OCL"</span>,
+  <span class="k">"accepted"</span>: <span class="n">false</span>, <span class="k">"round"</span>: <span class="n">1</span>,
+  <span class="k">"counter_amount_usd"</span>: <span class="n">5284.45</span>,
+  <span class="k">"counter_terms"</span>: {
+    <span class="k">"guaranteed_transit_days"</span>: <span class="n">35.5</span>, <span class="k">"late_penalty_pct_per_day"</span>: <span class="n">1.79</span>,
+    <span class="k">"max_penalty_pct"</span>: <span class="n">13.6</span>, <span class="k">"reserved_capacity"</span>: <span class="s">"Priority loading"</span>,
+    <span class="k">"free_demurrage_days"</span>: <span class="n">4</span>, <span class="k">"notes"</span>: <span class="s">""</span>
+  },
+  <span class="k">"message"</span>: <span class="s">"Oceanic Container Line: round 1 counter at $5,284.45; transit guarantee 35.5d, penalty 1.79%/day capped at 13.6%."</span>
+}</pre></div>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Carrier rule</th><th>How it is computed</th></tr></thead>
+          <tbody>
+            <tr><td>Price floor</td><td>other legs at list + main leg × carrier minimum margin (0.92–0.96)</td></tr>
+            <tr><td>Asking price in round <i>r</i></td><td>list − (list − floor) × min(1, flexibility × <i>r</i> / 2)</td></tr>
+            <tr><td>Late penalty per day</td><td>at most 0.5 + 1.5 × reliability (%)</td></tr>
+            <tr><td>Penalty cap</td><td>at most 5 + 10 × reliability (%)</td></tr>
+            <tr><td>Transit guarantee</td><td>at least transit × (1 + (1 − reliability) × 0.5)</td></tr>
+            <tr><td>Free demurrage</td><td>at most 4 days</td></tr>
+            <tr><td>Accepted when</td><td>offer ≥ asking price <b>and</b> the offered terms are already within the carrier's limits</td></tr>
+          </tbody>
+        </table></div>
+        <p><span class="req-label">Errors</span> · <code>KeyError</code> when there is no proposal or the option is unknown · <code>PolicyViolation</code> after 3 rounds with the same carrier for the same shipment.</p>
+      </article>
+
+      <!-- issue_purchase_order -->
+      <article class="tool" id="issue_purchase_order">
+        <div class="tool-head"><h3>issue_purchase_order</h3><span class="badge commit">■ Commits spend</span><span class="badge read">Requirement tool</span></div>
+        <p>Commits a reroute. It issues an adjusted purchase order to the carrier, marks the shipment's previous PO as superseded, reserves carrier capacity, and updates the shipment's route, cost and ETA. Before doing any of that it applies the HITL policy itself. See <a href="#hitl">HITL enforcement</a>.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Parameter</th><th>Type</th><th></th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>shipment_id</code></td><td>string</td><td><span class="req">required</span></td><td>Shipment being rerouted.</td></tr>
+            <tr><td><code>option_id</code></td><td>string</td><td><span class="req">required</span></td><td>From the proposal, or the option recorded on the approval.</td></tr>
+            <tr><td><code>amount_usd</code></td><td>number</td><td><span class="req">required</span></td><td>Agreed price. Cannot exceed the option's quoted <code>total_cost_usd</code>.</td></tr>
+            <tr><td><code>sla_json</code></td><td>string</td><td><span class="req">required</span></td><td>Agreed SLA as a JSON string with keys <code>guaranteed_transit_days</code>, <code>late_penalty_pct_per_day</code>, <code>max_penalty_pct</code>, <code>reserved_capacity</code>, and optionally <code>free_demurrage_days</code> and <code>notes</code>.</td></tr>
+            <tr><td><code>approval_id</code></td><td>string</td><td><span class="opt">optional</span></td><td>Required when the reroute exceeds either HITL limit. It must be an APPROVED sign-off for this shipment that has not been used yet.</td></tr>
+          </tbody>
+        </table></div>
+        <div class="two">
+          <div class="codebox"><div class="cap"><span>arguments (within limits)</span><button class="copy" type="button">Copy</button></div><pre>{
+  <span class="k">"shipment_id"</span>: <span class="s">"SHP-1004"</span>, <span class="k">"option_id"</span>: <span class="s">"OPT-1"</span>,
+  <span class="k">"amount_usd"</span>: <span class="n">5284.45</span>,
+  <span class="k">"sla_json"</span>: <span class="s">"{\"guaranteed_transit_days\": 35.5, \"late_penalty_pct_per_day\": 1.79, \"max_penalty_pct\": 13.6, \"reserved_capacity\": \"Priority loading\", \"free_demurrage_days\": 4}"</span>
+}</pre></div>
+          <div class="codebox"><div class="cap"><span>response (fields trimmed)</span><button class="copy" type="button">Copy</button></div><pre>{
+  <span class="k">"ok"</span>: <span class="n">true</span>,
+  <span class="k">"purchase_order"</span>: {
+    <span class="k">"po_id"</span>: <span class="s">"PO-SHP-1004-2B06E9"</span>, <span class="k">"shipment_id"</span>: <span class="s">"SHP-1004"</span>,
+    <span class="k">"carrier_id"</span>: <span class="s">"SEA-OCL"</span>, <span class="k">"amount_usd"</span>: <span class="n">5284.45</span>,
+    <span class="k">"route_label"</span>: <span class="s">"Sea CNSZX-&gt;BEANR, truck BEANR-&gt;NLRTM [Oceanic Container Line]"</span>,
+    <span class="k">"approval_id"</span>: <span class="n">null</span>, <span class="k">"supersedes_po_id"</span>: <span class="s">"PO-SHP-1004-ORIG"</span>,
+    <span class="k">"status"</span>: <span class="s">"issued"</span>, <span class="k">"auto_executed"</span>: <span class="n">true</span>, …
+  }
+}</pre></div>
+        </div>
+        <div class="codebox"><div class="cap"><span>response · $10.37M shipment SHP-1017, no approval</span><button class="copy" type="button">Copy</button></div><pre>{
+  <span class="k">"ok"</span>: <span class="n">false</span>,
+  <span class="k">"error"</span>: <span class="s">"PolicyViolation"</span>,
+  <span class="k">"message"</span>: <span class="s">"HITL sign-off required: Freight cost increase 889.76% &gt;= 5.00% limit; Cargo value $10,371,300 &gt;= $250,000 limit"</span>
+}</pre></div>
+        <p><span class="req-label">Errors</span> · <code>PolicyViolation</code> (see the checks below) · <code>KeyError</code> for an unknown shipment or option · <code>ValueError</code> if the carrier lacks capacity · <code>ValidationError</code> for a malformed <code>sla_json</code>.</p>
+      </article>
+    </section>
+
+    <section id="errors">
+      <h2>Responses &amp; errors</h2>
+      <p>Tools never raise to the client. Every call returns one of two shapes, so an agent can read a failure and change course.</p>
+      <div class="two">
+        <div class="codebox"><div class="cap"><span>success</span></div><pre>{ <span class="k">"ok"</span>: <span class="n">true</span>, …tool-specific fields… }</pre></div>
+        <div class="codebox"><div class="cap"><span>failure</span></div><pre>{ <span class="k">"ok"</span>: <span class="n">false</span>, <span class="k">"error"</span>: <span class="s">"&lt;ExceptionType&gt;"</span>, <span class="k">"message"</span>: <span class="s">"…"</span> }</pre></div>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>error</th><th>Meaning</th><th>What the caller should do</th></tr></thead>
+        <tbody>
+          <tr><td><code>PolicyViolation</code></td><td>A business rule refused the action: HITL sign-off needed, approval not valid, amount above quote, STAY chosen, or the round limit reached.</td><td>Do not retry the same call. Route the reroute through the Approval Queue, or pick another option.</td></tr>
+          <tr><td><code>KeyError</code></td><td>Unknown shipment, option or approval, or no proposal saved yet.</td><td>Check the id, and call <code>list_route_alternatives</code> first.</td></tr>
+          <tr><td><code>ValueError</code></td><td>Invalid lane or mode (e.g. road across the sea), unknown port, carrier not running that mode, or not enough capacity.</td><td>Fix the arguments or choose another carrier or option.</td></tr>
+          <tr><td><code>ValidationError</code></td><td>Arguments or <code>sla_json</code> do not match the expected fields or types.</td><td>Send every required SLA field with a numeric value.</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="hitl">
+      <h2>HITL enforcement inside the tool</h2>
+      <p>The pipeline already applies the HITL gate before it calls the negotiation agent. <code>issue_purchase_order</code> applies it again, so a misbehaving agent or any other MCP client cannot bypass human approval. The checks live in the HITL package, in <code>hitl/guard.py</code> (<code>authorize_purchase_order</code>), and use the same policy as the pipeline (<code>hitl/gate.py</code>). They run in this order:</p>
+      <ol class="steps">
+        <li><div>If an <code>approval_id</code> is given, it must exist and must not be <b>EXECUTED</b> already.</div></li>
+        <li><div>The option is taken from the approval if one is given, otherwise from the saved proposal, and its id must match <code>option_id</code>. <code>STAY</code> is refused because keeping the booking needs no PO.</div></li>
+        <li><div><code>amount_usd</code> may not exceed the option's quoted total cost.</div></li>
+        <li><div>The gate is evaluated: cost increase against the currently booked cost, and the cargo value. <b>Auto-execute only if the increase is under 5% and the value is under $250,000.</b></div></li>
+        <li><div>If either limit is reached and there is no approval, the call is refused and <code>po_refused</code> is written to the audit log. An approval that belongs to another shipment, or is not APPROVED, is also refused.</div></li>
+        <li><div>Capacity is reserved, the PO is issued, the old PO is marked superseded, and the shipment is rerouted. The approval becomes <b>EXECUTED</b>, so it can only be used once, and <code>po_issued</code> is written to the audit log.</div></li>
+      </ol>
+      <div class="callout stop"><b class="t">Getting an approval id</b><p>Approvals are created by the pipeline's HITL gate and decided by a Logistics Operations Manager in the Control Tower UI or through <code>POST /approvals/{id}/approve</code> on the REST API. There is no MCP tool that approves, on purpose: an agent must never be able to approve its own request.</p></div>
+    </section>
+
+    <section id="sequence">
+      <h2>Typical call sequence</h2>
+      <p>This is how the Vendor Negotiation agent uses the server for one reroute.</p>
+      <ol class="steps">
+        <li><div><code>get_shipment_status</code>: confirm the shipment is at risk and has no pending approval.</div></li>
+        <li><div><code>list_route_alternatives</code>: get priced options and save them as the proposal.</div></li>
+        <li><div><code>calculate_freight_cost</code> (optional): check a specific leg or forced route, e.g. Cape instead of Suez.</div></li>
+        <li><div><code>submit_sla_proposal</code>: open about 8% below list, move toward each counter, and accept the carrier's counter by round 3.</div></li>
+        <li><div><code>issue_purchase_order</code>: commit once with the agreed amount and SLA, passing <code>approval_id</code> when a sign-off was needed.</div></li>
+      </ol>
+    </section>
+
+    <section id="codes">
+      <h2>Ports, carriers and modes</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Region</th><th>Ports (UN/LOCODE)</th></tr></thead>
+        <tbody>
+          <tr><td>East Asia</td><td><code>CNSHA</code> Shanghai · <code>CNNGB</code> Ningbo · <code>CNSZX</code> Shenzhen · <code>KRPUS</code> Busan · <code>JPTYO</code> Tokyo · <code>SGSIN</code> Singapore</td></tr>
+          <tr><td>South Asia / Middle East</td><td><code>INNSA</code> Nhava Sheva · <code>AEJEA</code> Jebel Ali</td></tr>
+          <tr><td>Europe</td><td><code>NLRTM</code> Rotterdam · <code>BEANR</code> Antwerp · <code>DEHAM</code> Hamburg · <code>GBFXT</code> Felixstowe</td></tr>
+          <tr><td>North America</td><td><code>USLAX</code> Los Angeles · <code>USLGB</code> Long Beach · <code>USSEA</code> Seattle · <code>USNYC</code> New York/NJ · <code>USSAV</code> Savannah</td></tr>
+          <tr><td>South America</td><td><code>BRSSZ</code> Santos</td></tr>
+          <tr><td>Chokepoints (<code>via</code>)</td><td><code>MALACCA</code> · <code>BAB_EL_MANDEB</code> · <code>SUEZ</code> · <code>GIBRALTAR</code> · <code>CAPE</code> · <code>PANAMA</code> · <code>HORMUZ</code></td></tr>
+        </tbody>
+      </table></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Mode</th><th>Carriers (<code>carrier_id</code>)</th><th>Priced per</th></tr></thead>
+        <tbody>
+          <tr><td><code>sea</code></td><td><code>SEA-OCL</code> Oceanic Container Line · <code>SEA-BWS</code> BlueWave Shipping · <code>SEA-MCL</code> Meridian Container Lines · <code>SEA-PSL</code> Pacific Star Lines</td><td>TEU (33 m³ or 21 t)</td></tr>
+          <tr><td><code>air</code></td><td><code>AIR-SKB</code> SkyBridge Cargo · <code>AIR-KES</code> Kestrel Air Cargo</td><td>chargeable kg</td></tr>
+          <tr><td><code>rail</code></td><td><code>RAIL-SRE</code> Silk Rail Express · <code>RAIL-TCR</code> TransContinental Rail</td><td>TEU · China–Europe and US West–East only</td></tr>
+          <tr><td><code>road</code></td><td><code>ROAD-PLT</code> PortLink Trucking</td><td>TEU · land-connected ports only</td></tr>
+        </tbody>
+      </table></div>
+      <p>All carriers, rates and feeds are simulated for the capstone.</p>
+    </section>
+
+    <section id="testing">
+      <h2>Testing</h2>
+      <p><code>packages/mcp-servers/tests/test_mcp_server.py</code> starts the real server over stdio, lists its tools, calls <code>get_shipment_status</code>, <code>calculate_freight_cost</code> and <code>list_route_alternatives</code>, and checks that <code>issue_purchase_order</code> refuses a $10M reroute with no approval.</p>
+      <div class="codebox"><div class="cap"><span>PowerShell</span><button class="copy" type="button">Copy</button></div><pre>.\.venv\Scripts\python.exe -m pytest packages\mcp-servers\tests\test_mcp_server.py -v</pre></div>
+      <p>The rest of the suite (46 tests) covers the same core functions in-process, including approval single-use, the amount cap and the 3-round negotiation limit.</p>
+    </section>
+
+    <section id="limits">
+      <h2>Limitations</h2>
+      <ul>
+        <li>The SSE and Streamable HTTP transports have <b>no authentication</b>. They bind to 127.0.0.1 by default; do not expose them on a network without adding auth in front.</li>
+        <li>Tool calls are tested over stdio. The SSE transport has been started and accepts connections, but tool calls over SSE and Streamable HTTP have not been run end to end.</li>
+        <li>The server reports the MCP SDK version (1.28.1) as its own version.</li>
+        <li>Cache tiers L1 and L2 live in the server process, so the MCP server and the REST API each keep their own. L3 is shared through SQLite.</li>
+        <li>Shipments, feeds, carriers and tariffs are simulated.</li>
+      </ul>
+    </section>
+
+    <footer>Part of the OceanBridge Logistics capstone (pod 3) · source: <code>packages/mcp-servers/src/oceanbridge/mcp_servers/supply_chain_core/</code>, <code>packages/core/src/oceanbridge/core/service.py</code> and <code>packages/core/src/oceanbridge/hitl/</code>.</footer>
+  </main>
+</div>
+
+<script>
+(() => {
+  // Copy buttons
+  document.querySelectorAll(".codebox").forEach(box => {
+    const btn = box.querySelector(".copy");
+    if (!btn) return;
+    btn.addEventListener("click", async () => {
+      const text = box.querySelector("pre").innerText;
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = "Copied";
+      } catch (e) {
+        const r = document.createRange();
+        r.selectNodeContents(box.querySelector("pre"));
+        const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+        btn.textContent = "Selected";
+      }
+      setTimeout(() => { btn.textContent = "Copy"; }, 1600);
+    });
+  });
+
+  // Highlight the section in view
+  const links = [...document.querySelectorAll("#toc a")];
+  const targets = links.map(a => document.getElementById(a.getAttribute("href").slice(1))).filter(Boolean);
+  if ("IntersectionObserver" in window) {
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(en => {
+        if (!en.isIntersecting) return;
+        links.forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#" + en.target.id));
+      });
+    }, { rootMargin: "-10% 0px -75% 0px" });
+    targets.forEach(t => io.observe(t));
+  }
+})();
+</script>

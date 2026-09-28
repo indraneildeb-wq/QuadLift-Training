@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oceanbridge-app"
+version = "0.1.0"
+description = "OceanBridge application: CrewAI Flow pipeline, backend wiring, chat sessions and the FastAPI API"
+requires-python = ">=3.11"
+dependencies = [
+    "oceanbridge-core",
+    "oceanbridge-mcp-servers",
+    "oceanbridge-agent-common",
+    "oceanbridge-agent-disruption-monitor",
+    "oceanbridge-agent-route-optimizer",
+    "oceanbridge-agent-vendor-negotiator",
+    "oceanbridge-agent-status-analyst",
+    "oceanbridge-agent-chat-assistant",
+    "crewai>=0.100",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "httpx>=0.27",
+]
+
+[project.scripts]
+oceanbridge-api = "oceanbridge.api.__main__:main"
+
+# Every package contributes to the shared `oceanbridge` namespace (no oceanbridge/__init__.py).
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["oceanbridge*"]
+namespaces = true
+
+# For uv users: resolve sibling packages from this workspace.
+[tool.uv.sources]
+oceanbridge-core = { workspace = true }
+oceanbridge-mcp-servers = { workspace = true }
+oceanbridge-agent-common = { workspace = true }
+oceanbridge-agent-disruption-monitor = { workspace = true }
+oceanbridge-agent-route-optimizer = { workspace = true }
+oceanbridge-agent-vendor-negotiator = { workspace = true }
+oceanbridge-agent-status-analyst = { workspace = true }
+oceanbridge-agent-chat-assistant = { workspace = true }

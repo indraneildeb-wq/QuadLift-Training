@@ -1,0 +1,22 @@
+# Workspace root: not a package itself. Each installable package lives in packages/ with its own pyproject.toml.
+#
+#   pip:  python -m pip install -r requirements.txt       (installs every package in editable mode)
+#   uv:   uv sync --all-packages
+
+[tool.uv.workspace]
+members = [
+    "packages/core",
+    "packages/mcp-servers",
+    "packages/agents/*",
+    "packages/app",
+    "packages/ui",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["packages"]
+# Test files live in several packages; importlib mode avoids clashes between their tests/ folders.
+addopts = "--import-mode=importlib"
+
+[tool.ruff]
+line-length = 120
+src = ["packages/*/src", "packages/agents/*/src"]

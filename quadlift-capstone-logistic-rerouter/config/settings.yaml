@@ -1,0 +1,60 @@
+# OceanBridge rerouting system configuration.
+# Every value here can be overridden by an environment variable prefixed OB_
+# (nested keys joined with "__", e.g. OB_HITL__MAX_COST_INCREASE_PCT=7.5).
+
+db_path: data/oceanbridge.db
+
+# auto  -> use CrewAI + OpenAI when OPENAI_API_KEY is set, otherwise deterministic offline agents
+# crewai -> always use CrewAI (fails without an API key)
+# offline -> always use deterministic offline agents
+llm_mode: auto
+
+hitl:
+  # Auto-execute only if BOTH conditions hold; anything else needs Logistics Ops Manager sign-off.
+  max_cost_increase_pct: 5.0      # strictly less than
+  max_cargo_value_usd: 250000     # strictly less than
+  approver_role: Logistics Operations Manager
+
+models:
+  light: gpt-4o-mini
+  heavy: gpt-4o
+  embedding: text-embedding-3-small
+  # Complexity score at or above which route optimisation escalates to the heavy model.
+  escalation_threshold: 3
+  # USD per 1M tokens (input, output), used for spend estimates.
+  pricing:
+    gpt-4o-mini: [0.15, 0.60]
+    gpt-4o: [2.50, 10.00]
+
+cache:
+  l1_max_entries: 2048
+  l1_ttl_seconds: 900
+  l2_similarity_threshold: 0.92
+  l2_max_entries: 5000
+  l3_ttl_seconds: 86400
+  # TTL applied to entries whose route touches an active disruption.
+  disrupted_ttl_seconds: 300
+  # Relative weight/volume tolerance for a semantic hit to be considered structurally equivalent.
+  weight_tolerance: 0.10
+  # "auto" -> OpenAI embeddings when a key is available, otherwise local hashed n-gram embeddings
+  embedder: auto
+
+monitoring:
+  risk_threshold: 0.45
+  delay_threshold_days: 3.0
+
+chat:
+  # Recent messages sent to the LLM word for word; older ones are folded into a running summary.
+  history_messages: 12
+  summarize_after_messages: 24
+  # A session with no activity for this long expires and must be replaced by a new one.
+  session_idle_timeout_minutes: 60
+  # Tool-calling rounds per turn before the assistant must answer.
+  max_tool_steps: 6
+  default_user: Logistics Operations Manager
+
+economics:
+  # Daily inventory carrying cost as a fraction of cargo value.
+  holding_cost_per_day: 0.0005
+  # Penalty per day late versus required delivery date, as a fraction of cargo value.
+  lateness_penalty_per_day: 0.004

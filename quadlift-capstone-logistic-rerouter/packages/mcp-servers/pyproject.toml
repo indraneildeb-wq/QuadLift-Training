@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oceanbridge-mcp-servers"
+version = "0.1.0"
+description = "All OceanBridge MCP servers (Supply Chain Core) and the registry clients use to launch them"
+requires-python = ">=3.11"
+dependencies = [
+    "oceanbridge-core",
+    "mcp>=1.2",
+]
+
+[project.scripts]
+oceanbridge-mcp-supply-chain-core = "oceanbridge.mcp_servers.supply_chain_core.server:main"
+
+# Every package contributes to the shared `oceanbridge` namespace (no oceanbridge/__init__.py).
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["oceanbridge*"]
+namespaces = true
+
+# For uv users: resolve sibling packages from this workspace.
+[tool.uv.sources]
+oceanbridge-core = { workspace = true }

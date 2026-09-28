@@ -1,0 +1,638 @@
+<title>OceanBridge Request Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #eef2f1;
+    --surface: #ffffff;
+    --ink: #13232a;
+    --muted: #56686d;
+    --line: #b7c4c6;
+    --accent: #0a6f8f;
+    --accent-tint: #e0eef2;
+    --done: #86b3c2;
+    --token: #d98a00;
+    --good: #0a7a0a;
+    --good-tint: #e3f3e3;
+    --crit: #c0392f;
+    --crit-tint: #f8e4e2;
+    --display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0e171a; --surface: #152227; --ink: #e2ebeb; --muted: #93a6aa; --line: #37494f;
+      --accent: #4fb6d6; --accent-tint: #173540; --done: #2f6f82; --token: #f2b233;
+      --good: #4cc44c; --good-tint: #173319; --crit: #f0766b; --crit-tint: #3a1d1b;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0e171a; --surface: #152227; --ink: #e2ebeb; --muted: #93a6aa; --line: #37494f;
+    --accent: #4fb6d6; --accent-tint: #173540; --done: #2f6f82; --token: #f2b233;
+    --good: #4cc44c; --good-tint: #173319; --crit: #f0766b; --crit-tint: #3a1d1b;
+  }
+
+  body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.55; }
+  .page { max-width: 1280px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 48px; display: grid; gap: 22px; }
+
+  header { display: grid; gap: 6px; }
+  .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+  h1 { font-family: var(--display); font-weight: 700; font-size: clamp(28px, 4vw, 40px); line-height: 1.1; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+  .lede { margin: 0; color: var(--muted); max-width: 72ch; }
+
+  .scenarios { display: flex; flex-wrap: wrap; gap: 8px; }
+  .scenario-btn {
+    font: 500 14px/1.2 var(--body); color: var(--ink); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; cursor: pointer;
+  }
+  .scenario-btn:hover { border-color: var(--accent); }
+  .scenario-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+  .scenario-btn:focus-visible, .ctl:focus-visible, .step-item button:focus-visible { outline: 2px solid var(--token); outline-offset: 2px; }
+  .scenario-desc { margin: 0; color: var(--muted); font-size: 14px; }
+
+  .stage { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; display: grid; }
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .ctl {
+    font: 500 13px/1 var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 6px; padding: 8px 12px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center;
+  }
+  .ctl:hover:not(:disabled) { border-color: var(--accent); }
+  .ctl:disabled { opacity: 0.45; cursor: default; }
+  .ctl.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); min-width: 92px; justify-content: center; }
+  .progress { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .diagram-wrap { overflow-x: auto; padding: 8px 6px 4px; }
+  svg.flow { display: block; width: 100%; min-width: 940px; height: auto; }
+
+  /* diagram marks */
+  .edge { fill: none; stroke: var(--line); stroke-width: 1.5; }
+  .edge.done { stroke: var(--done); stroke-width: 1.75; }
+  .edge.active { stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 7 5; animation: march 0.9s linear infinite; }
+  .edge.active.rev { animation-direction: reverse; }
+  .halo { fill: none; stroke: var(--surface); stroke-width: 7; }
+  @keyframes march { to { stroke-dashoffset: -24; } }
+  .mk-idle { fill: var(--line); } .mk-done { fill: var(--done); } .mk-active { fill: var(--accent); }
+  .elabel { font: 500 11px var(--mono); fill: var(--muted); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
+  .elabel.active { fill: var(--accent); }
+
+  .node rect.box { fill: var(--surface); stroke: var(--line); stroke-width: 1.25; }
+  .node.kind-agent rect.box { fill: var(--bg); }
+  .node.kind-policy rect.box { stroke-dasharray: 4 3; }
+  .node.done rect.box { stroke: var(--done); }
+  .node.active rect.box { stroke: var(--accent); stroke-width: 2.25; fill: var(--accent-tint); }
+  .node .nb { font: 500 9.5px var(--mono); letter-spacing: 0.1em; text-transform: uppercase; fill: var(--muted); }
+  .node .nt { font: 600 14px var(--display); fill: var(--ink); }
+  .node .ns { font: 400 10.5px var(--mono); fill: var(--muted); }
+  .node .ns.good { fill: var(--good); font-weight: 500; }
+  .node .ns.crit { fill: var(--crit); font-weight: 500; }
+  .node .ns.hot { fill: var(--accent); font-weight: 500; }
+  .token { fill: var(--token); stroke: var(--surface); stroke-width: 2.5; }
+  .zone { font: 500 10px var(--mono); letter-spacing: 0.12em; text-transform: uppercase; fill: var(--muted); opacity: 0.8; }
+  .zone-line { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; padding: 10px 14px 14px; font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--line); }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .sw { width: 26px; height: 0; border-top: 2px solid var(--line); display: inline-block; }
+  .sw.done { border-color: var(--done); }
+  .sw.active { border-top: 2.5px dashed var(--accent); }
+  .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--token); display: inline-block; }
+  .box-sw { width: 16px; height: 11px; border: 1.5px dashed var(--muted); border-radius: 3px; display: inline-block; }
+
+  .panel { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  @media (max-width: 820px) { .panel { grid-template-columns: 1fr; } }
+
+  .detail { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px 22px; display: grid; gap: 12px; }
+  .detail .count { font-family: var(--mono); font-size: 12px; color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase; }
+  .detail h2 { font-family: var(--display); font-weight: 600; font-size: 24px; line-height: 1.2; margin: 0; text-wrap: balance; }
+  .detail p { margin: 0; max-width: 68ch; }
+  .facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 4px 0 0; }
+  .facts dt { font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding-top: 2px; }
+  .facts dd { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+  .facts code { font-family: var(--mono); font-size: 13px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font: 600 12.5px var(--body); border-radius: 999px; padding: 2px 10px; }
+  .pill.good { color: var(--good); background: var(--good-tint); }
+  .pill.crit { color: var(--crit); background: var(--crit-tint); }
+  .pill.neutral { color: var(--accent); background: var(--accent-tint); }
+
+  .steps { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 10px; }
+  .steps h3 { margin: 0 10px 8px; font: 600 13px var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .steps ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; counter-reset: s; max-height: 460px; overflow-y: auto; }
+  .step-item button {
+    width: 100%; text-align: left; background: none; border: 0; border-radius: 6px; padding: 7px 10px;
+    font: 400 14px/1.35 var(--body); color: var(--muted); cursor: pointer; display: grid; grid-template-columns: 2.2em 1fr; gap: 4px;
+  }
+  .step-item button::before { counter-increment: s; content: counter(s, decimal-leading-zero); font: 500 12px/1.6 var(--mono); color: var(--line); }
+  .step-item.done button { color: var(--ink); }
+  .step-item.done button::before { color: var(--done); }
+  .step-item.active button { background: var(--accent-tint); color: var(--ink); font-weight: 600; }
+  .step-item.active button::before { color: var(--accent); }
+  .step-item button:hover { background: var(--bg); }
+
+  .note { font-size: 13px; color: var(--muted); margin: 0; max-width: 90ch; }
+  .note code { font-family: var(--mono); font-size: 12.5px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .edge.active { animation: none; stroke-dasharray: none; }
+  }
+</style>
+
+<div class="page">
+  <header>
+    <span class="eyebrow">OceanBridge Logistics · capstone pod 3</span>
+    <h1>OceanBridge Request Flow</h1>
+    <p class="lede">Pick a request and follow it hop by hop through the agents, the semantic cache, the model router, the HITL approval gate and the MCP Supply Chain Core. The numbers come from the Rotterdam dock-worker strike demo run.</p>
+  </header>
+
+  <div class="scenarios" role="group" aria-label="Request type" id="scenarios"></div>
+  <p class="scenario-desc" id="scenario-desc"></p>
+
+  <section class="stage" aria-label="Request flow diagram">
+    <div class="toolbar">
+      <button class="ctl" id="btn-restart" type="button" title="Back to the first step">↺ Restart</button>
+      <button class="ctl" id="btn-prev" type="button" title="Previous step (←)">◀ Back</button>
+      <button class="ctl primary" id="btn-play" type="button" title="Play or pause (space)">▶ Play</button>
+      <button class="ctl" id="btn-next" type="button" title="Next step (→)">Next ▶</button>
+      <span class="progress" id="progress" aria-live="polite"></span>
+    </div>
+    <div class="diagram-wrap">
+      <figure style="margin:0">
+        <svg class="flow" id="flow" viewBox="0 0 1240 590" role="img"
+             aria-label="Request flow: the control tower calls the REST API, which starts the CrewAI Flow. The Flow drives the monitoring agent (feeds), the route optimizer (semantic cache, MCP server, model router), then the HITL gate, which either dispatches to the negotiation agent or queues a manager approval. Agents reach OpenAI through the model router and the Supply Chain Core through the MCP server."></svg>
+        <figcaption class="note" style="padding: 4px 10px 0;">Each hop of the selected request is highlighted as it runs. The amber token is the request in flight; hops already travelled stay tinted.</figcaption>
+      </figure>
+    </div>
+    <div class="legend" aria-hidden="true">
+      <span><i class="sw"></i>idle path</span>
+      <span><i class="sw active"></i>current hop</span>
+      <span><i class="sw done"></i>already travelled</span>
+      <span><i class="dot"></i>request in flight</span>
+      <span><i class="box-sw"></i>deterministic policy (never an LLM)</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <article class="detail" aria-live="polite">
+      <span class="count" id="d-count"></span>
+      <h2 id="d-title"></h2>
+      <p id="d-text"></p>
+      <dl class="facts" id="d-facts"></dl>
+    </article>
+    <nav class="steps" aria-label="Steps">
+      <h3>Steps</h3>
+      <ol id="step-list"></ol>
+    </nav>
+  </section>
+
+  <p class="note">In offline mode (no <code>OPENAI_API_KEY</code>) the same hops run with deterministic agents, and the router still records which model it would have used. With a key, the CrewAI agents call OpenAI and reach the Supply Chain Core through the MCP server over stdio.</p>
+</div>
+
+<script>
+(() => {
+  // ------------------------------------------------------------------ topology
+  const NODES = {
+    ui:     { x: 10,   y: 290, w: 140, h: 60, kind: "edge",   nb: "Operator",     nt: "Control Tower",      ns: "Streamlit" },
+    api:    { x: 190,  y: 290, w: 140, h: 60, kind: "edge",   nb: "Service",      nt: "REST API",           ns: "FastAPI" },
+    flow:   { x: 385,  y: 290, w: 150, h: 60, kind: "orch",   nb: "Orchestrator", nt: "Reroute Flow",       ns: "CrewAI Flow" },
+    mon:    { x: 645,  y: 40,  w: 160, h: 60, kind: "agent",  nb: "Agent",        nt: "Disruption Monitor", ns: "risk + report" },
+    opt:    { x: 645,  y: 170, w: 160, h: 60, kind: "agent",  nb: "Agent",        nt: "Route Optimizer",    ns: "rank alternatives" },
+    gate:   { x: 645,  y: 330, w: 160, h: 60, kind: "policy", nb: "Policy",       nt: "HITL Gate",          ns: "<5% AND <$250k" },
+    neg:    { x: 645,  y: 490, w: 160, h: 60, kind: "agent",  nb: "Agent",        nt: "Vendor Negotiator",  ns: "SLA + PO" },
+    queue:  { x: 385,  y: 490, w: 150, h: 60, kind: "orch",   nb: "Human in loop",nt: "Approval Queue",     ns: "Ops Manager" },
+    feeds:  { x: 885,  y: 40,  w: 160, h: 60, kind: "svc",    nb: "Inputs",       nt: "Live Feeds",         ns: "weather·AIS·port·geo" },
+    cache:  { x: 885,  y: 150, w: 160, h: 60, kind: "svc",    nb: "Cache",        nt: "Semantic Cache",     ns: "L1 → L3 → L2" },
+    router: { x: 885,  y: 270, w: 160, h: 60, kind: "svc",    nb: "Routing",      nt: "Model Router",       ns: "complexity score" },
+    mcp:    { x: 885,  y: 460, w: 160, h: 60, kind: "svc",    nb: "MCP",          nt: "MCP Server",         ns: "5 tools" },
+    llm:    { x: 1095, y: 270, w: 135, h: 60, kind: "svc",    nb: "LLM",          nt: "OpenAI",             ns: "4o-mini / 4o" },
+    core:   { x: 1095, y: 460, w: 135, h: 60, kind: "svc",    nb: "Data",         nt: "Supply Chain Core",  ns: "SQLite" },
+  };
+
+  // Draw order matters: the router bus goes first so the two lines that cross it get a halo.
+  const EDGES = {
+    "mon-router":   { a: "mon",   b: "router", d: "M805 88 H865 V300 H885" },
+    "opt-router":   { a: "opt",   b: "router", d: "M805 206 H865 V300 H885" },
+    "neg-router":   { a: "neg",   b: "router", d: "M805 500 H865 V300 H885", label: "select model", lx: 877, ly: 395, rot: 90 },
+    "opt-cache":    { a: "opt",   b: "cache",  d: "M805 190 H885", label: "lookup / store", lx: 845, ly: 183, halo: true },
+    "opt-mcp":      { a: "opt",   b: "mcp",    d: "M805 218 H845 V475 H885", label: "alternatives", lx: 838, ly: 350, rot: -90, halo: true },
+    "ui-api":       { a: "ui",    b: "api",    d: "M150 320 H190", label: "HTTP", lx: 170, ly: 312 },
+    "api-flow":     { a: "api",   b: "flow",   d: "M330 320 H385", label: "kickoff", lx: 357, ly: 312 },
+    "flow-mon":     { a: "flow",  b: "mon",    d: "M535 308 H590 V70 H645", label: "detect", lx: 617, ly: 63 },
+    "flow-opt":     { a: "flow",  b: "opt",    d: "M535 316 H590 V200 H645", label: "optimize", lx: 617, ly: 193 },
+    "flow-gate":    { a: "flow",  b: "gate",   d: "M535 332 H590 V360 H645", label: "route", lx: 617, ly: 353 },
+    "mon-feeds":    { a: "mon",   b: "feeds",  d: "M805 70 H885", label: "read", lx: 845, ly: 63 },
+    "router-llm":   { a: "router",b: "llm",    d: "M1045 300 H1095", label: "chat", lx: 1070, ly: 293 },
+    "mcp-core":     { a: "mcp",   b: "core",   d: "M1045 490 H1095", label: "calls", lx: 1070, ly: 483 },
+    "neg-mcp":      { a: "neg",   b: "mcp",    d: "M805 514 H885", label: "SLA · PO", lx: 845, ly: 530 },
+    "gate-neg":     { a: "gate",  b: "neg",    d: "M765 390 V490", label: "auto", lx: 772, ly: 444, anchor: "start" },
+    "gate-queue":   { a: "gate",  b: "queue",  d: "M680 390 V440 H460 V490", label: "sign-off", lx: 570, ly: 433 },
+    "api-queue":    { a: "api",   b: "queue",  d: "M260 350 V505 H385", label: "approve", lx: 322, ly: 498 },
+    "queue-ui":     { a: "queue", b: "ui",     d: "M385 535 H80 V350", label: "review", lx: 232, ly: 550 },
+    "queue-neg":    { a: "queue", b: "neg",    d: "M535 520 H645", label: "execute", lx: 590, ly: 513 },
+  };
+
+  // ------------------------------------------------------------------ requests
+  // e: edges travelled in order · r: travelled in reverse (a response) · n: extra nodes to light
+  // f: facts for the panel · s: node sub-label overrides that persist for the rest of the request
+  const SCENARIOS = [
+    {
+      id: "auto", label: "Auto-executed reroute",
+      desc: "Rotterdam strike, shipment SHP-1004 (Shenzhen → Rotterdam, $79,000 cargo). The reroute costs less than before, so the policy lets it execute without a human.",
+      steps: [
+        { e: ["ui-api"], t: "Operator starts a run",
+          d: "With the Rotterdam dock-worker strike scenario switched on, the control tower asks the API to run the rerouting pipeline and waits for the result.",
+          f: { Call: "POST /pipeline/run-sync" } },
+        { e: ["api-flow"], t: "API kicks off the Flow",
+          d: "run_pipeline() opens a run record and starts RerouteFlow. One run handles every monitored shipment; this walkthrough follows SHP-1004.",
+          f: { Call: "RerouteFlow.kickoff()" } },
+        { e: ["flow-mon"], t: "@start: detect disruptions",
+          d: "The Flow's start step hands control to the Disruption Monitoring Agent.",
+          f: { Step: "detect_disruptions" } },
+        { e: ["mon-feeds"], t: "Sensor fusion over four feeds",
+          d: "Weather, AIS port status, port congestion and geopolitical feeds are read for every port and chokepoint. Rotterdam reports status “strike” and congestion index 78, which become two disruptions: labour (severity 0.70, +6 days) and port congestion (0.56, +4 days). Cached route decisions that touch NLRTM are evicted.",
+          f: { Detected: "DSR-labor-NLRTM · DSR-port_congestion-NLRTM" }, s: { feeds: "2 disruptions" } },
+        { e: ["mon-router", "router-llm"], t: "Light model validates the risk",
+          d: "A deterministic pre-screen flags 12 shipments. The router sends the monitoring task to gpt-4o-mini, which writes the situation report and may move each risk score by at most ±0.15. It cannot drop a flagged shipment.",
+          f: { Model: "gpt-4o-mini", Why: "disruption_monitoring is always the light tier" }, s: { router: "→ gpt-4o-mini", mon: "12 at risk" } },
+        { e: ["flow-opt"], t: "@listen: optimise each at-risk shipment",
+          d: "For every at-risk shipment the Route & Capacity Optimization Agent is invoked. SHP-1004 is booked by sea from Shenzhen to Rotterdam, so the strike delays it by about 6 days.",
+          f: { Step: "optimize_routes", Shipment: "SHP-1004 · CNSZX → NLRTM · sea" } },
+        { e: ["opt-mcp", "mcp-core"], t: "Price the alternatives",
+          d: "list_route_alternatives prices every candidate from the Supply Chain Core: keep the current booking, sea to Antwerp or Hamburg then truck, air, and more. Each option gets freight cost, transit days, CO₂, carrier capacity and a landed-cost score. Options that would land later than simply absorbing the delay are dropped.",
+          f: { Tool: "list_route_alternatives", Result: "7 options including STAY" }, s: { mcp: "list_route_alternatives" } },
+        { e: ["opt-cache"], t: "Cache lookup: miss",
+          d: "The query (lane, route, disruption fingerprint, value band, delivery slack, weight) is checked in L1 memory by exact key, then L3 SQLite by exact key, then L2 by embedding similarity ≥ 0.92 plus a structural guard. This situation is new, so every tier misses.",
+          f: { Cache: "miss" }, s: { cache: "miss" } },
+        { e: ["opt-router", "router-llm"], t: "Complexity-routed model picks a route",
+          d: "Seven candidates, multimodal options and two compounding disruptions give a complexity score of 3, which meets the threshold, so the router picks gpt-4o. The agent must answer with one of the listed option ids. It picks sea to Antwerp and a truck to Rotterdam: 3.0% cheaper, arriving 3 days after plan instead of 6.",
+          f: { Model: "gpt-4o", Why: "complexity 3 ≥ threshold 3", Choice: "OPT-1 · Sea CNSZX→BEANR, truck BEANR→NLRTM" }, s: { router: "→ gpt-4o", opt: "OPT-1 −3.0%" } },
+        { e: ["opt-cache"], t: "Strategy stored in the cache",
+          d: "The chosen route signature is stored in all three tiers, without its price, so later hits are always re-priced. Because the route touches an active disruption, the entry expires after 5 minutes.",
+          f: { Cache: "stored · TTL 300 s" }, s: { cache: "stored" } },
+        { e: ["flow-gate"], t: "@router: HITL gate",
+          d: "Plain code applies the policy. The cost change is −3.0%, under the 5% limit, and the cargo value of $79,000 is under $250,000. Both conditions hold, so the reroute executes without a human.",
+          f: { Policy: "pill:good:Auto-execute", Rule: "cost < 5% AND value < $250,000" }, s: { gate: "AUTO-EXECUTE" } },
+        { e: ["gate-neg"], t: "Dispatched to negotiation",
+          d: "The gate returns “dispatch”, and execute_auto_reroutes passes the option to the Vendor Negotiation & PO Agent.",
+          f: { Step: "execute_auto_reroutes" } },
+        { e: ["neg-router", "router-llm"], t: "Negotiation runs on the heavy model",
+          d: "Negotiation is always routed to gpt-4o.",
+          f: { Model: "gpt-4o", Why: "negotiation is always the heavy tier" }, s: { router: "→ gpt-4o" } },
+        { e: ["neg-mcp", "mcp-core"], t: "Three rounds with the carrier",
+          d: "submit_sla_proposal opens 8% below list with OceanBridge's SLA ask. Oceanic Container Line counters within its price floor each round. The agent splits the difference and closes in round 3 at $5,190.85 against a $5,378.05 list price: a 35.5-day transit guarantee, 1.79% credit per day late capped at 13.6%, and 4 free demurrage days.",
+          f: { Tool: "submit_sla_proposal × 3", Agreed: "$5,190.85 (list $5,378.05)" }, s: { mcp: "submit_sla_proposal", neg: "3 rounds" } },
+        { e: ["neg-mcp", "mcp-core"], t: "Adjusted PO issued",
+          d: "issue_purchase_order applies the HITL policy again inside the tool, reserves carrier capacity, issues the new PO and marks PO-SHP-1004-ORIG as superseded. The shipment's status becomes rerouted.",
+          f: { Tool: "issue_purchase_order", Result: "new PO issued · original superseded" }, s: { mcp: "issue_purchase_order", core: "PO issued" } },
+        { e: ["api-flow", "ui-api"], r: true, t: "Run summary returned",
+          d: "The Flow finishes the other shipments too: 2 reroutes auto-executed and 10 queued for sign-off. The control tower refreshes the map, the agent trace and the purchase orders.",
+          f: { Response: "at_risk 12 · auto_executed 2 · queued 10" } },
+      ],
+    },
+    {
+      id: "signoff", label: "Manager sign-off",
+      desc: "Same run, shipment SHP-1017 ($10.37M of cargo, Shanghai → Rotterdam). The best option is far more expensive, so it stops at the gate until the Logistics Operations Manager approves.",
+      steps: [
+        { e: ["ui-api", "api-flow"], t: "Pipeline run starts",
+          d: "Same request as the auto-executed case: the control tower triggers a run and the API starts the Flow.",
+          f: { Call: "POST /pipeline/run-sync → RerouteFlow.kickoff()" } },
+        { e: ["flow-mon", "mon-feeds"], t: "Strike detected",
+          d: "The monitoring agent reads the feeds and flags SHP-1017, since its sea route ends in Rotterdam.",
+          f: { Detected: "labour + congestion at NLRTM" }, s: { feeds: "2 disruptions" } },
+        { e: ["flow-opt", "opt-mcp", "mcp-core"], t: "Alternatives priced",
+          d: "With $10.37M of cargo, every day late carries a large penalty, so lateness dominates the landed-cost score rather than freight cost.",
+          f: { Tool: "list_route_alternatives", Shipment: "SHP-1017 · CNSHA → NLRTM · sea" }, s: { mcp: "list_route_alternatives" } },
+        { e: ["opt-cache"], t: "Cache lookup: miss",
+          d: "No equivalent query has been seen for this lane, value band and disruption set.",
+          f: { Cache: "miss" }, s: { cache: "miss" } },
+        { e: ["opt-router", "router-llm"], t: "gpt-4o recommends air freight",
+          d: "High-value cargo, many candidates, multimodal options and compounding disruptions give a complexity score of 4, so the router picks gpt-4o. It recommends air with Kestrel Air Cargo: freight rises 889.8%, but the cargo arrives 30 days earlier than planned.",
+          f: { Model: "gpt-4o", Why: "complexity 4 ≥ threshold 3", Choice: "Air CNSHA→NLRTM · +889.8% · ETA −30 d" }, s: { router: "→ gpt-4o", opt: "Air +889.8%" } },
+        { e: ["flow-gate"], t: "Gate: sign-off required",
+          d: "The cost increase of 889.8% is at or above 5%, and the cargo value of $10,371,300 is at or above $250,000. Both limits are breached, so nothing is executed.",
+          f: { Policy: "pill:crit:Sign-off required", Reasons: "cost increase ≥ 5% · cargo value ≥ $250,000" }, s: { gate: "SIGN-OFF" } },
+        { e: ["gate-queue"], t: "Approval request queued",
+          d: "queue_for_approval stores an APR-… request with the option, up to four alternatives, the reasons and the agent's rationale. The shipment is set to pending_approval, and later monitoring runs skip it until someone decides.",
+          f: { Step: "queue_for_approval", Status: "pending" }, s: { queue: "1 pending" } },
+        { e: ["queue-ui"], t: "Manager reviews",
+          d: "The Approval Queue tab shows why sign-off is needed, the new freight cost, ETA, residual risk, CO₂ and the alternatives that were considered.",
+          f: { View: "Approval Queue tab" } },
+        { e: ["ui-api", "api-queue"], t: "Approve & execute",
+          d: "The manager's click records their name and comment and sets the request to APPROVED.",
+          f: { Call: "POST /approvals/{id}/approve" }, s: { queue: "APPROVED" } },
+        { e: ["queue-neg"], t: "execute_approval",
+          d: "The approved option goes straight to the Vendor Negotiation & PO Agent. Monitoring and optimisation are not repeated.",
+          f: { Step: "execute_approval → run_negotiation" } },
+        { e: ["neg-router", "router-llm"], t: "Negotiation on the heavy model",
+          d: "Negotiation is always routed to gpt-4o, with or without an approval.",
+          f: { Model: "gpt-4o" }, s: { router: "→ gpt-4o" } },
+        { e: ["neg-mcp", "mcp-core"], t: "SLA negotiated with the air carrier",
+          d: "Up to three rounds of submit_sla_proposal. The agreed price can never exceed the quoted route cost.",
+          f: { Tool: "submit_sla_proposal × ≤3" }, s: { mcp: "submit_sla_proposal", neg: "negotiating" } },
+        { e: ["neg-mcp", "mcp-core"], t: "PO issued under the approval",
+          d: "issue_purchase_order receives the approval id and checks that it exists, is APPROVED, belongs to this shipment and has not been used. The approval then becomes EXECUTED, so a second approve returns HTTP 409.",
+          f: { Tool: "issue_purchase_order(approval_id=APR-…)", Policy: "pill:good:Signed off" }, s: { mcp: "issue_purchase_order", core: "PO issued", queue: "EXECUTED" } },
+        { e: ["api-queue", "ui-api"], r: true, t: "Confirmation shown",
+          d: "The UI shows the new PO number, the agreed amount, the number of rounds and the confirmation message sent to the carrier.",
+          f: { Response: "po_id · amount_usd · rounds · carrier_message" } },
+      ],
+    },
+    {
+      id: "cache", label: "Re-run from cache",
+      desc: "The manager rejected a proposal, which puts the shipment back in the booked state. The next run meets the same situation again and answers from the cache without calling the LLM.",
+      steps: [
+        { e: ["ui-api", "api-flow"], t: "Next pipeline run",
+          d: "The operator runs the pipeline again with the strike still active.",
+          f: { Call: "POST /pipeline/run-sync" } },
+        { e: ["flow-mon", "mon-feeds"], t: "Same disruptions, nothing evicted",
+          d: "The same two disruptions are detected. None of them is new, so no cache entries are invalidated.",
+          f: { Detected: "no new disruptions" }, s: { feeds: "no change" } },
+        { e: ["flow-opt"], t: "Rejected shipment re-evaluated",
+          d: "Rejecting a request restores the shipment to booked, so it shows up as at risk again.",
+          f: { Step: "optimize_routes" } },
+        { e: ["opt-mcp", "mcp-core"], t: "Fresh prices",
+          d: "Alternatives are always re-priced before the cache is consulted, so a cached answer never reuses stale numbers.",
+          f: { Tool: "list_route_alternatives" }, s: { mcp: "list_route_alternatives" } },
+        { e: ["opt-cache"], t: "L1 exact hit, no LLM call",
+          d: "The identical query hits L1 by exact key. If the API had restarted, L3 would answer from SQLite instead. The stored route signature maps onto today's priced options. The model router and OpenAI are skipped, and the usage log records model cache:L1-exact at $0.",
+          f: { Cache: "L1-exact", Model: "none (cache)", Cost: "$0" }, s: { cache: "L1 HIT" } },
+        { e: ["flow-gate", "gate-queue"], t: "Gate evaluates again",
+          d: "Same policy, same numbers, same outcome: sign-off is required and a new approval request is queued.",
+          f: { Policy: "pill:crit:Sign-off required" }, s: { gate: "SIGN-OFF", queue: "1 pending" } },
+        { e: ["api-flow", "ui-api"], r: true, t: "Summary shows the cache tier",
+          d: "In the run trace, the decision for this shipment shows cache_tier = L1-exact.",
+          f: { Response: "decisions[].cache_tier = L1-exact" } },
+      ],
+    },
+    {
+      id: "whatif", label: "What-if (semantic hit)",
+      desc: "A dry run from the Reroute Proposals tab with the shipment's weight raised by 4%. Nothing is written: no approvals and no purchase orders.",
+      steps: [
+        { e: ["ui-api"], t: "What-if request",
+          d: "The operator changes the weight by +4% and clicks Optimise.",
+          f: { Call: "POST /optimize/what-if", Body: "{shipment_id, weight_kg: +4%}" } },
+        { e: ["api-flow"], t: "optimize_what_if()",
+          d: "The API calls the same RouteOptimizer the Flow uses, outside a Flow run, so nothing can be dispatched or queued.",
+          f: { Call: "optimize_what_if(shipment_id, overrides)" } },
+        { e: ["flow-opt", "opt-mcp", "mcp-core"], t: "Alternatives for the hypothetical shipment",
+          d: "Options are priced for the modified weight and are not saved as proposals.",
+          f: { Tool: "alternatives_for(shipment)" } },
+        { e: ["opt-cache"], t: "L2 semantic hit",
+          d: "The exact key changed with the weight, so L1 and L3 miss. L2 finds a stored query with similarity 1.0: the normalised text rounds the weight to whole tonnes, so it reads the same. The structural guard also matches: same lane, route, disruptions, value band and delivery slack, with weight within ±10%. The strategy is reused and re-priced.",
+          f: { Cache: "L2-semantic · similarity 1.0", Guard: "weight +4% ≤ ±10%" }, s: { cache: "L2 HIT" } },
+        { e: ["flow-gate"], t: "HITL verdict (preview only)",
+          d: "gate.evaluate() reports whether this option would auto-execute. Nothing is written.",
+          f: { Policy: "pill:neutral:Preview only" }, s: { gate: "PREVIEW" } },
+        { e: ["api-flow", "ui-api"], r: true, t: "Result",
+          d: "The UI shows the recommended option, cache tier L2-semantic, model “cache” and the HITL verdict. Change the weight by +50% instead and the guard fails, so the query misses and goes to the routed LLM.",
+          f: { Response: "selected_option_id · cache_tier · similarity · hitl" } },
+      ],
+    },
+    {
+      id: "blocked", label: "Blocked PO",
+      desc: "Defence in depth: an agent calls issue_purchase_order for the $10.37M shipment without an approval. The tool refuses on its own, whatever the agent was told.",
+      steps: [
+        { e: ["neg-mcp"], t: "An agent tries to commit",
+          d: "Suppose the LLM negotiator calls issue_purchase_order for SHP-1017 with no approval id, for example because of a bad instruction.",
+          f: { Tool: "issue_purchase_order(approval_id=None)" }, s: { mcp: "issue_purchase_order" } },
+        { e: ["mcp-core"], t: "Policy checked inside the tool",
+          d: "The Supply Chain Core recalculates the HITL decision from the PO amount and the cargo value. $10,371,300 is at or above $250,000, so sign-off is required and there is no approval.",
+          f: { Policy: "pill:crit:Sign-off required" } },
+        { e: ["mcp-core", "neg-mcp"], r: true, t: "Refused",
+          d: "The tool returns {ok: false, error: PolicyViolation}. The audit log records po_refused, and the original PO stays in force.",
+          f: { Response: "PolicyViolation", Audit: "po_refused" }, s: { mcp: "PolicyViolation", core: "no change" } },
+        { e: [], n: ["neg", "queue"], t: "Only the approval queue can unlock it",
+          d: "If a CrewAI negotiator fails to commit, the backend retries with deterministic negotiation, which hits the same check. A high-value or high-cost reroute can only go through the Approval Queue.",
+          f: { Path: "Approval Queue → approve → execute_approval" }, s: { neg: "blocked" } },
+      ],
+    },
+  ];
+
+  // ------------------------------------------------------------------ render diagram
+  const svg = document.getElementById("flow");
+  const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  let html = `<defs>
+    <marker id="ah-idle" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-idle" d="M0 0 L10 5 L0 10 z"/></marker>
+    <marker id="ah-done" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-done" d="M0 0 L10 5 L0 10 z"/></marker>
+    <marker id="ah-active" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-active" d="M0 0 L10 5 L0 10 z"/></marker>
+  </defs>`;
+  // zone labels
+  html += `<text class="zone" x="10" y="270">Entry</text>
+           <text class="zone" x="385" y="270">Orchestration</text>
+           <text class="zone" x="645" y="24">Agents</text>
+           <text class="zone" x="885" y="24">Tools &amp; services</text>
+           <line class="zone-line" x1="620" y1="12" x2="620" y2="280"/>`;
+  for (const [id, e] of Object.entries(EDGES)) {
+    if (e.halo) html += `<path class="halo" d="${e.d}"/>`;
+    html += `<path class="edge" id="edge-${id}" d="${e.d}" marker-end="url(#ah-idle)"/>`;
+  }
+  for (const [id, e] of Object.entries(EDGES)) {
+    if (!e.label) continue;
+    const tr = e.rot ? ` transform="rotate(${e.rot} ${e.lx} ${e.ly})"` : "";
+    html += `<text class="elabel" id="lbl-${id}" x="${e.lx}" y="${e.ly}" text-anchor="${e.anchor || "middle"}"${tr}>${esc(e.label)}</text>`;
+  }
+  for (const [id, n] of Object.entries(NODES)) {
+    const cx = n.x + 12;
+    html += `<g class="node kind-${n.kind}" id="node-${id}">
+      <rect class="box" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="6"/>
+      <text class="nb" x="${cx}" y="${n.y + 15}">${esc(n.nb)}</text>
+      <text class="nt" x="${cx}" y="${n.y + 33}">${esc(n.nt)}</text>
+      <text class="ns" id="sub-${id}" x="${cx}" y="${n.y + 49}">${esc(n.ns)}</text>
+    </g>`;
+  }
+  html += `<circle class="token" id="token" r="7" cx="-20" cy="-20"/>`;
+  svg.innerHTML = html;
+
+  const token = svg.querySelector("#token");
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // ------------------------------------------------------------------ state
+  let sc = SCENARIOS[0];
+  let idx = 0;
+  let playing = false;
+  let timer = null;
+  let anim = null;
+
+  const scBox = document.getElementById("scenarios");
+  SCENARIOS.forEach(s => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "scenario-btn";
+    b.id = `sc-${s.id}`;
+    b.textContent = s.label;
+    b.addEventListener("click", () => selectScenario(s.id));
+    scBox.appendChild(b);
+  });
+
+  function nodesOf(step) {
+    const set = new Set(step.n || []);
+    for (const e of step.e) { set.add(EDGES[e].a); set.add(EDGES[e].b); }
+    return set;
+  }
+
+  function toneFor(text) {
+    if (/^(AUTO|APPROVED|EXECUTED|PO issued|L1 HIT|L2 HIT)/i.test(text)) return "good";
+    if (/SIGN-OFF|PolicyViolation|blocked/i.test(text)) return "crit";
+    return "hot";
+  }
+
+  function renderFacts(f) {
+    const dl = document.getElementById("d-facts");
+    dl.innerHTML = "";
+    for (const [k, v] of Object.entries(f || {})) {
+      const dt = document.createElement("dt"); dt.textContent = k;
+      const dd = document.createElement("dd");
+      if (v.startsWith("pill:")) {
+        const [, tone, label] = v.split(":");
+        const span = document.createElement("span");
+        span.className = `pill ${tone}`;
+        span.textContent = (tone === "good" ? "✓ " : tone === "crit" ? "■ " : "◆ ") + label;
+        dd.appendChild(span);
+      } else if (/^(Call|Tool|Step)$/.test(k)) {
+        const c = document.createElement("code"); c.textContent = v; dd.appendChild(c);
+      } else {
+        dd.textContent = v;
+      }
+      dl.append(dt, dd);
+    }
+  }
+
+  function paint() {
+    const steps = sc.steps;
+    const cur = steps[idx];
+    const doneEdges = new Set(), doneNodes = new Set();
+    steps.slice(0, idx).forEach(s => { s.e.forEach(e => doneEdges.add(e)); nodesOf(s).forEach(n => doneNodes.add(n)); });
+    const curEdges = new Set(cur.e), curNodes = nodesOf(cur);
+
+    for (const id of Object.keys(EDGES)) {
+      const p = svg.querySelector(`#edge-${id}`);
+      const active = curEdges.has(id), done = !active && doneEdges.has(id);
+      p.classList.toggle("active", active);
+      p.classList.toggle("rev", active && !!cur.r);
+      p.classList.toggle("done", done);
+      p.setAttribute("marker-end", `url(#ah-${active ? "active" : done ? "done" : "idle"})`);
+      const l = svg.querySelector(`#lbl-${id}`);
+      if (l) l.classList.toggle("active", active);
+    }
+    // sub-labels: defaults, then the overrides accumulated up to this step
+    const subs = {};
+    steps.slice(0, idx + 1).forEach(s => Object.assign(subs, s.s || {}));
+    for (const [id, n] of Object.entries(NODES)) {
+      const g = svg.querySelector(`#node-${id}`);
+      g.classList.toggle("active", curNodes.has(id));
+      g.classList.toggle("done", !curNodes.has(id) && doneNodes.has(id));
+      const sub = svg.querySelector(`#sub-${id}`);
+      const text = subs[id] || n.ns;
+      sub.textContent = text;
+      sub.classList.remove("good", "crit", "hot");
+      if (subs[id]) sub.classList.add(toneFor(text));
+    }
+
+    document.getElementById("d-count").textContent = `Step ${idx + 1} of ${steps.length}`;
+    document.getElementById("d-title").textContent = cur.t;
+    document.getElementById("d-text").textContent = cur.d;
+    renderFacts(cur.f);
+    document.getElementById("progress").textContent = `${sc.label} · ${idx + 1}/${steps.length}`;
+
+    document.querySelectorAll("#step-list .step-item").forEach((li, i) => {
+      li.classList.toggle("active", i === idx);
+      li.classList.toggle("done", i < idx);
+      li.querySelector("button").setAttribute("aria-current", i === idx ? "step" : "false");
+    });
+    const activeLi = document.querySelector("#step-list .step-item.active");
+    if (activeLi) activeLi.scrollIntoView({ block: "nearest" });
+    document.getElementById("btn-prev").disabled = idx === 0;
+    document.getElementById("btn-next").disabled = idx === steps.length - 1;
+  }
+
+  function travel(step, done) {
+    cancelAnimationFrame(anim);
+    const paths = step.e.map(id => svg.querySelector(`#edge-${id}`));
+    if (!paths.length) { token.setAttribute("cx", -20); token.setAttribute("cy", -20); done && done(); return; }
+    const place = (p, frac) => {
+      const L = p.getTotalLength();
+      const pt = p.getPointAtLength(L * (step.r ? 1 - frac : frac));
+      token.setAttribute("cx", pt.x); token.setAttribute("cy", pt.y);
+    };
+    if (reduceMotion) { place(paths[paths.length - 1], 1); done && done(); return; }
+    const per = 750;
+    let seg = 0, t0 = null;
+    const tick = ts => {
+      if (t0 === null) t0 = ts;
+      const frac = Math.min(1, (ts - t0) / per);
+      place(paths[seg], frac);
+      if (frac < 1) { anim = requestAnimationFrame(tick); return; }
+      seg += 1; t0 = null;
+      if (seg < paths.length) anim = requestAnimationFrame(tick); else done && done();
+    };
+    anim = requestAnimationFrame(tick);
+  }
+
+  function go(i, animate = true) {
+    clearTimeout(timer);
+    idx = Math.max(0, Math.min(sc.steps.length - 1, i));
+    paint();
+    if (animate) travel(sc.steps[idx], () => { if (playing) scheduleNext(); });
+    else { cancelAnimationFrame(anim); const s = sc.steps[idx]; if (s.e.length) { const p = svg.querySelector(`#edge-${s.e[s.e.length - 1]}`); const L = p.getTotalLength(); const pt = p.getPointAtLength(s.r ? 0 : L); token.setAttribute("cx", pt.x); token.setAttribute("cy", pt.y); } }
+  }
+
+  function scheduleNext() {
+    timer = setTimeout(() => {
+      if (!playing) return;
+      if (idx < sc.steps.length - 1) go(idx + 1);
+      else setPlaying(false);
+    }, 2200);
+  }
+
+  function setPlaying(on) {
+    playing = on;
+    const b = document.getElementById("btn-play");
+    b.textContent = on ? "❚❚ Pause" : (idx === sc.steps.length - 1 ? "▶ Replay" : "▶ Play");
+    b.setAttribute("aria-pressed", String(on));
+    if (on) {
+      if (idx === sc.steps.length - 1) go(0); else go(idx + 1);
+    } else {
+      clearTimeout(timer);
+    }
+  }
+
+  function selectScenario(id) {
+    setPlaying(false);
+    sc = SCENARIOS.find(s => s.id === id) || SCENARIOS[0];
+    document.querySelectorAll(".scenario-btn").forEach(b => b.setAttribute("aria-pressed", String(b.id === `sc-${sc.id}`)));
+    document.getElementById("scenario-desc").textContent = sc.desc;
+    const ol = document.getElementById("step-list");
+    ol.innerHTML = "";
+    sc.steps.forEach((s, i) => {
+      const li = document.createElement("li");
+      li.className = "step-item";
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = s.t;
+      b.addEventListener("click", () => { setPlaying(false); go(i); });
+      li.appendChild(b);
+      ol.appendChild(li);
+    });
+    try { localStorage.setItem("ob-flow-scenario", sc.id); } catch (e) {}
+    go(0, false);
+    document.getElementById("btn-play").textContent = "▶ Play";
+  }
+
+  document.getElementById("btn-play").addEventListener("click", () => setPlaying(!playing));
+  document.getElementById("btn-next").addEventListener("click", () => { setPlaying(false); go(idx + 1); });
+  document.getElementById("btn-prev").addEventListener("click", () => { setPlaying(false); go(idx - 1); });
+  document.getElementById("btn-restart").addEventListener("click", () => { setPlaying(false); go(0); });
+  document.addEventListener("keydown", ev => {
+    if (ev.target.closest("input, textarea")) return;
+    if (ev.key === "ArrowRight") { setPlaying(false); go(idx + 1); }
+    else if (ev.key === "ArrowLeft") { setPlaying(false); go(idx - 1); }
+    else if (ev.key === " " && !ev.target.closest("button")) { ev.preventDefault(); setPlaying(!playing); }
+  });
+
+  let saved = null;
+  try { saved = localStorage.getItem("ob-flow-scenario"); } catch (e) {}
+  const hash = (location.hash || "").slice(1);
+  selectScenario(SCENARIOS.some(s => s.id === hash) ? hash : (SCENARIOS.some(s => s.id === saved) ? saved : "auto"));
+})();
+</script>
