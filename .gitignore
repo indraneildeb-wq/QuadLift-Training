@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Runtime-generated artifacts (audit trails, stdout capture, quarantined payloads) --
+# these are produced by running the processes, not part of the source.
+disruption-agent-system/logs/*.log
+disruption-agent-system/logs/*.jsonl
+disruption-agent-system/quarantine/*.json
+!disruption-agent-system/logs/.gitkeep
+!disruption-agent-system/quarantine/.gitkeep

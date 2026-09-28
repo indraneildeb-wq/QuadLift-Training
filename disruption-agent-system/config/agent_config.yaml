@@ -1,0 +1,100 @@
+server:
+  host: 127.0.0.1
+  port: 8000
+
+downstream:
+  url: http://localhost:8090/downstream/reports
+  timeout_seconds: 5
+  retry:
+    max_attempts: 5
+    backoff_seconds: [1, 2, 5, 10, 30]
+
+mcp:
+  mode: mock   # real | mock -- forced to "mock" if --mock-mcp is passed on the CLI
+  real:
+    endpoint: https://supply-chain-core.oceanbridge.internal/sse   # SSE transport endpoint of the running MCP server -- replace with the real URL
+    auth_header_name: Authorization
+    api_key: "REPLACE_WITH_REAL_API_KEY"   # hardcoded per explicit instruction for now; move to a secret store/vault reference before this goes anywhere real
+    timeout_seconds: 10
+  mock:
+    fixture_file: fixtures/shipments.json
+
+llm:
+  mode: mock   # real | mock -- forced to "mock" if --mock-llm is passed on the CLI
+  real:
+    provider: openai
+    api_key_env_var: OPENAI_API_KEY
+
+trigger:
+  confidence_threshold: 0.85
+  debounce_seconds: 900
+  max_hold_seconds: 7200
+  reconciliation_interval_seconds: 15   # background tick: checks timers AND recomputes idle-report decay
+
+confidence_scoring:
+  prior_p0: 0.10
+  decay_lambda: 0.00005
+  severity_weight:
+    low: 0.5
+    moderate: 1.0
+    high: 1.5
+    severe: 2.0
+  diversity_dampening: inverse_sqrt
+  source_reliability_defaults:
+    weather: 0.80
+    port_status: 0.85
+    vessel_tracking: 0.80
+    geopolitical: 0.55
+    unknown: 0.40
+  source_reliability_violation_penalty: 0.5
+  source_reliability_violation_window_count: 5
+
+model_routing:
+  classification_model: gpt-4o-mini
+  extraction_model: gpt-4o-mini
+  complex_reasoning_model: gpt-4o
+  escalation_confidence_threshold: 0.6
+
+state_store:
+  backend: redis
+  redis:
+    host: localhost
+    port: 6379
+    db: 0
+    key_prefix: "disruption:state:"
+    connection_timeout_seconds: 5
+
+semantic_cache:
+  enabled: true
+  backend: redis
+  redis:
+    host: localhost
+    port: 6379
+    db: 1
+    key_prefix: "disruption:cache:"
+  tiers:
+    - name: exact_match
+      ttl_seconds: 3600
+    - name: semantic
+      similarity_threshold: 0.85
+      ttl_seconds: 21600
+
+security:
+  source_allow_list_file: config/trusted_news_domains.txt
+  prompt_injection_heuristic: enabled
+  schema_validation: strict   # strict | warn
+
+observability:
+  cost_pricing_table_file: config/model_pricing.yaml
+
+audit:
+  sink: file
+  file_path: logs/audit_log.jsonl
+  redact_fields: ["source_excerpt", "payload.raw_text"]
+
+quarantine:
+  directory: quarantine
+
+logging:
+  level: INFO
+  format: json

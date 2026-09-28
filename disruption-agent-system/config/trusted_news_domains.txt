@@ -1,0 +1,7 @@
+# One domain per line. Only used by real news-scraping adapters (not by the manual_test_input channel).
+reuters.com
+apnews.com
+bloomberg.com
+maritime-executive.com
+lloydslist.com
+gcaptain.com

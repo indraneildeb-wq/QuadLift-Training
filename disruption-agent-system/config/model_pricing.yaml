@@ -1,0 +1,10 @@
+# USD per 1M tokens. Update when provider pricing changes -- never hardcode in code.
+gpt-4o-mini:
+  prompt_per_million: 0.15
+  completion_per_million: 0.60
+gpt-4o:
+  prompt_per_million: 2.50
+  completion_per_million: 10.00
+mock:
+  prompt_per_million: 0.0
+  completion_per_million: 0.0

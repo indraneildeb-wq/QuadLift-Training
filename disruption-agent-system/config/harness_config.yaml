@@ -1,0 +1,16 @@
+agent:
+  base_url: http://localhost:8000
+  ingest_path: /ingest
+  request_timeout_seconds: 10
+
+prompts:
+  order: [weather, port_status, vessel_tracking, news_feed]
+  allow_skip: true
+  allow_multiple_per_slot: true
+
+output:
+  format: pretty   # pretty | raw_json
+  show_diff: true
+
+session:
+  log_path: logs/harness_session.jsonl
